@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaFileInvoice, FaCalculator, FaCheckCircle, FaUpload, FaArrowRight, 
+import {
+  FaFileInvoice, FaCheckCircle, FaUpload, FaArrowRight,
   FaTractor, FaGraduationCap, FaHeartbeat, FaStore, FaTools, FaIdCard, FaUserCheck
 } from 'react-icons/fa';
 import { schemeService } from '../services/schemeService';
@@ -15,7 +15,7 @@ const Apply = () => {
   const [category, setCategory] = useState('GENERAL');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [address, setAddress] = useState('');
-  
+
   // Beneficiary Type details from session/localStorage
   const beneficiaryType = localStorage.getItem('beneficiaryType') || 'FARMER';
   const rawDetails = localStorage.getItem('beneficiaryDetails');
@@ -78,34 +78,7 @@ const Apply = () => {
     }
   };
 
-  // Automated Score Preview Calculation
-  const calculateScorePreview = () => {
-    let incScore = 30;
-    const numIncome = parseFloat(income) || 0;
-    if (numIncome > 300000) incScore = 10;
-    else if (numIncome > 150000) incScore = 20;
 
-    let catScore = category === 'GENERAL' ? 30 : 40;
-    
-    // Dynamic Document Score: 0 if no Aadhaar/Doc, 15 if partial, 30 if 12-digit Aadhaar & document package attached
-    let docScore = 0;
-    const hasValidAadhaar = aadhaarNumber && aadhaarNumber.replace(/\D/g, '').length === 12;
-    const hasDocument = documentType && documentType.length > 0;
-
-    if (hasValidAadhaar && hasDocument) {
-      docScore = 30;
-    } else if (hasValidAadhaar || hasDocument) {
-      docScore = 15;
-    } else {
-      docScore = 0;
-    }
-
-    return incScore + catScore + docScore;
-  };
-
-  const estimatedScore = calculateScorePreview();
-  const validAadhaar = aadhaarNumber && aadhaarNumber.replace(/\D/g, '').length === 12;
-  const docScoreDisplay = (validAadhaar && documentType) ? '30/30' : (validAadhaar || documentType) ? '15/30' : '0/30';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,7 +99,7 @@ const Apply = () => {
       const result = await applicationService.applyForScheme(payload);
 
       if (result.success || result.id) {
-        setSuccessMessage(`Application #APP-${result.id || '101'} submitted successfully! Automated eligibility score: ${estimatedScore}/100.`);
+        setSuccessMessage(`Application #APP-${result.id || '101'} submitted successfully! Your application has been sent for Field Officer review.`);
         setTimeout(() => {
           navigate('/dashboard');
         }, 2000);
@@ -150,7 +123,7 @@ const Apply = () => {
 
   return (
     <div className="animate-fade-in" style={{ padding: '1rem 0' }}>
-      
+
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '2rem', color: '#0f172a', fontWeight: 800 }}>Apply for Government Subsidy</h2>
         <p style={{ color: '#475569' }}>Complete the digital application tailored for your beneficiary profile</p>
@@ -184,11 +157,11 @@ const Apply = () => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2rem', maxWidth: '1050px', margin: '0 auto' }}>
-        
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '750px', margin: '0 auto' }}>
+
         {/* Main Application Form */}
         <form onSubmit={handleSubmit} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '2.5rem', boxShadow: 'var(--shadow-md)' }}>
-          
+
           <div className="form-group">
             <label htmlFor="scheme">Select Targeted Welfare Scheme</label>
             <select
@@ -302,48 +275,15 @@ const Apply = () => {
           </button>
         </form>
 
-        {/* Live Automated Score Preview Meter */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '1.75rem', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
-            <span className="badge badge-submitted" style={{ marginBottom: '1rem' }}>
-              <FaCalculator /> Automated Score Gauge
-            </span>
-            
-            <div style={{ margin: '1.5rem 0', position: 'relative' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: estimatedScore >= 60 ? '#059669' : '#be123c' }}>
-                {estimatedScore}
-              </div>
-              <div style={{ color: '#64748b', fontSize: '0.85rem' }}>out of 100</div>
-            </div>
-
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'left', fontSize: '0.82rem', color: '#334155', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <span>Income Points:</span>
-                <strong>{income <= 150000 ? '30/30' : income <= 300000 ? '20/30' : '10/30'}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <span>Category Points:</span>
-                <strong>{category === 'GENERAL' ? '30/40' : '40/40'}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Document Completeness:</span>
-                <strong style={{ color: docScoreDisplay === '30/30' ? '#059669' : docScoreDisplay === '15/30' ? '#d97706' : '#be123c' }}>
-                  {docScoreDisplay}
-                </strong>
-              </div>
-            </div>
-
-            <p style={{ marginTop: '1rem', fontSize: '0.8rem', fontWeight: 600, color: estimatedScore >= 60 ? '#059669' : '#be123c' }}>
-              {estimatedScore >= 60 ? '✓ Score meets 60+ threshold! Will pass to Level 1 Field Review.' : '✗ Score below threshold. May be flagged for manual review.'}
-            </p>
-          </div>
-
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '1.5rem', fontSize: '0.85rem', color: '#475569', boxShadow: 'var(--shadow-sm)' }}>
-            <h4 style={{ color: '#0f172a', marginBottom: '0.5rem', fontSize: '0.95rem' }}>3-Stage Verification Pipeline</h4>
-            <ol style={{ paddingLeft: '1.25rem', lineHeight: '1.7' }}>
-              <li>Field Officer conducts ground visit & document review.</li>
+        {/* 3-Stage Verification Pipeline Info */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '1.25rem 1.75rem', fontSize: '0.88rem', color: '#475569', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+          <FaUserCheck style={{ color: '#2563eb', fontSize: '1.3rem', marginTop: 2, flexShrink: 0 }} />
+          <div>
+            <h4 style={{ color: '#0f172a', marginBottom: '0.4rem', fontSize: '0.95rem', fontWeight: 700 }}>3-Stage Verification Pipeline</h4>
+            <ol style={{ paddingLeft: '1.1rem', lineHeight: '1.8', margin: 0 }}>
+              <li>Field Officer conducts ground visit &amp; document review.</li>
               <li>District Officer performs secondary scrutiny.</li>
-              <li>Finance Approver signs off & credits bank account.</li>
+              <li>Finance Approver signs off &amp; credits bank account.</li>
             </ol>
           </div>
         </div>

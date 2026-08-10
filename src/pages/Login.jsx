@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   FaEnvelope, FaLock, FaUserShield, FaSignInAlt, FaUserCheck,
-  FaTractor, FaGraduationCap, FaHeartbeat, FaStore, FaTools, FaIdBadge,
-  FaEye, FaEyeSlash
+  FaIdBadge, FaEye, FaEyeSlash
 } from 'react-icons/fa';
 import { authService } from '../services/authService';
 
@@ -15,7 +14,7 @@ const Login = () => {
   const isOfficerPortal = location.pathname.includes('officer') || queryParams.get('type') === 'officer' || queryParams.get('type') === 'admin';
   const mainPortal = isOfficerPortal ? 'ADMIN' : 'USER';
 
-  const [selectedUserType, setSelectedUserType] = useState('FARMER');
+
   const [selectedOfficerRole, setSelectedOfficerRole] = useState('FIELD_OFFICER');
 
   const [email, setEmail] = useState('');
@@ -41,10 +40,6 @@ const Login = () => {
 
     try {
       const roleToSubmit = mainPortal === 'USER' ? 'CITIZEN' : selectedOfficerRole;
-      
-      if (mainPortal === 'USER') {
-        localStorage.setItem('beneficiaryType', selectedUserType);
-      }
 
       const response = await authService.login(email, password, roleToSubmit);
 
@@ -70,7 +65,7 @@ const Login = () => {
   return (
     <div className="animate-fade-in" style={{ padding: '2.5rem 1rem', background: '#ffffff', minHeight: '80vh' }}>
       <div style={{ maxWidth: '540px', margin: '0 auto' }}>
-        
+
         {/* Top Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           {mainPortal === 'USER' ? (
@@ -117,93 +112,7 @@ const Login = () => {
 
           <form onSubmit={handleLoginSubmit}>
 
-            {/* BENEFICIARY SPECIFIC CATEGORY SELECTION */}
-            {mainPortal === 'USER' && (
-              <div style={{ marginBottom: '1.75rem', background: '#f0f9ff', padding: '1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid #bae6fd' }}>
-                <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, color: '#0369a1', marginBottom: '0.75rem' }}>
-                  Select Beneficiary Category:
-                </label>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '0.5rem' }}>
-                  
-                  <div 
-                    onClick={() => setSelectedUserType('FARMER')}
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: selectedUserType === 'FARMER' ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                      background: selectedUserType === 'FARMER' ? '#e0f2fe' : '#ffffff',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      boxShadow: selectedUserType === 'FARMER' ? '0 2px 8px rgba(56, 189, 248, 0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedUserType === 'FARMER' ? '#0369a1' : '#334155' }}>Farmer</div>
-                  </div>
-
-                  <div 
-                    onClick={() => setSelectedUserType('STUDENT')}
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: selectedUserType === 'STUDENT' ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                      background: selectedUserType === 'STUDENT' ? '#e0f2fe' : '#ffffff',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      boxShadow: selectedUserType === 'STUDENT' ? '0 2px 8px rgba(56, 189, 248, 0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedUserType === 'STUDENT' ? '#0369a1' : '#334155' }}>Student</div>
-                  </div>
-
-                  <div 
-                    onClick={() => setSelectedUserType('SENIOR_CITIZEN')}
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: selectedUserType === 'SENIOR_CITIZEN' ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                      background: selectedUserType === 'SENIOR_CITIZEN' ? '#e0f2fe' : '#ffffff',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      boxShadow: selectedUserType === 'SENIOR_CITIZEN' ? '0 2px 8px rgba(56, 189, 248, 0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedUserType === 'SENIOR_CITIZEN' ? '#0369a1' : '#334155' }}>Senior</div>
-                  </div>
-
-                  <div 
-                    onClick={() => setSelectedUserType('ENTREPRENEUR')}
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: selectedUserType === 'ENTREPRENEUR' ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                      background: selectedUserType === 'ENTREPRENEUR' ? '#e0f2fe' : '#ffffff',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      boxShadow: selectedUserType === 'ENTREPRENEUR' ? '0 2px 8px rgba(56, 189, 248, 0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedUserType === 'ENTREPRENEUR' ? '#0369a1' : '#334155' }}>Business</div>
-                  </div>
-
-                  <div 
-                    onClick={() => setSelectedUserType('WORKER')}
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: selectedUserType === 'WORKER' ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                      background: selectedUserType === 'WORKER' ? '#e0f2fe' : '#ffffff',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      boxShadow: selectedUserType === 'WORKER' ? '0 2px 8px rgba(56, 189, 248, 0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedUserType === 'WORKER' ? '#0369a1' : '#334155' }}>Worker</div>
-                  </div>
-
-                </div>
-              </div>
-            )}
 
             {/* OFFICER / ADMIN DESIGNATION SELECTION */}
             {mainPortal === 'ADMIN' && (
@@ -296,7 +205,7 @@ const Login = () => {
               }}
               disabled={isLoading}
             >
-              <FaSignInAlt /> {isLoading ? 'Authenticating...' : mainPortal === 'USER' ? `Sign In as ${selectedUserType.replace('_', ' ')}` : `Sign In as ${selectedOfficerRole.replace('_', ' ')}`}
+              <FaSignInAlt /> {isLoading ? 'Authenticating...' : mainPortal === 'USER' ? 'Sign In' : `Sign In as ${selectedOfficerRole.replace(/_/g, ' ')}`}
             </button>
 
           </form>
