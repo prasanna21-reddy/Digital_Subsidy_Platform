@@ -63,6 +63,7 @@ const Apply = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchSchemes();
@@ -80,8 +81,26 @@ const Apply = () => {
 
 
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (!aadhaarNumber.trim() || !/^\d{12}$/.test(aadhaarNumber)) {
+      newErrors.aadhaar = 'Aadhaar must be exactly 12 digits (numeric)';
+    }
+    if (!income.trim() || parseInt(income) < 0) {
+      newErrors.income = 'Please enter a valid household income';
+    }
+    if (!address.trim() || address.trim().length < 10) {
+      newErrors.address = 'Please enter complete permanent address (min 10 chars)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
 
     try {
@@ -204,9 +223,10 @@ const Apply = () => {
               placeholder="e.g. 987654321012"
               maxLength="12"
               value={aadhaarNumber}
-              onChange={(e) => setAadhaarNumber(e.target.value)}
+              onChange={(e) => { setAadhaarNumber(e.target.value); if (errors.aadhaar) setErrors({ ...errors, aadhaar: null }) }}
               required
             />
+            {errors.aadhaar && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.aadhaar}</div>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -217,9 +237,10 @@ const Apply = () => {
                 id="income"
                 className="form-control"
                 value={income}
-                onChange={(e) => setIncome(e.target.value)}
+                onChange={(e) => { setIncome(e.target.value); if (errors.income) setErrors({ ...errors, income: null }) }}
                 required
               />
+              {errors.income && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.income}</div>}
             </div>
 
             <div className="form-group">
@@ -246,9 +267,10 @@ const Apply = () => {
               rows="3"
               placeholder="Enter full address as per Aadhaar Card"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => { setAddress(e.target.value); if (errors.address) setErrors({ ...errors, address: null }) }}
               required
             />
+            {errors.address && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.address}</div>}
           </div>
 
           <div className="form-group">

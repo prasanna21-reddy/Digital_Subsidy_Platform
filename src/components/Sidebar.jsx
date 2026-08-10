@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FaHome, FaFileAlt, FaUserEdit, FaCheckCircle,
   FaMoneyBillWave, FaSignOutAlt, FaPlusCircle,
-  FaSearch, FaHistory, FaBell
+  FaSearch, FaHistory, FaBell, FaChartBar
 } from 'react-icons/fa';
 import { authService } from '../services/authService';
 
