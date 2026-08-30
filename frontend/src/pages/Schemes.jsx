@@ -19,10 +19,10 @@ const Schemes = () => {
   const isAdmin = userRole.toUpperCase() === 'ADMIN';
   const isLoggedIn = !!localStorage.getItem('jwtToken');
 
-  const handleApplyClick = (e) => {
+  const handleApplyClick = (e, schemeId) => {
     e.preventDefault();
     if (isLoggedIn) {
-      navigate('/apply');
+      navigate(`/apply?schemeId=${schemeId}`, { state: { schemeId } });
     } else {
       navigate('/login');
     }
@@ -139,7 +139,7 @@ const Schemes = () => {
               </div>
             ) : (
               <button
-                onClick={handleApplyClick}
+                onClick={(e) => handleApplyClick(e, scheme.id)}
                 className="btn-brand"
                 style={{ width: '100%', justifyContent: 'center' }}
               >

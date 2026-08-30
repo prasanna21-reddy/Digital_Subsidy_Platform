@@ -27,6 +27,14 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editEmail, setEditEmail] = useState(userEmail);
   const [editPhone, setEditPhone] = useState('');
+
+  const [editAadhaar, setEditAadhaar] = useState('');
+  const [editIncome, setEditIncome] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editBank, setEditBank] = useState('');
+  const [editIfsc, setEditIfsc] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,6 +49,12 @@ const Profile = () => {
         setProfileData(data);
         if (data.phone) setEditPhone(data.phone);
         if (data.email) setEditEmail(data.email);
+        if (data.aadhaarNumber) setEditAadhaar(data.aadhaarNumber);
+        if (data.annualIncome) setEditIncome(data.annualIncome);
+        if (data.socialCategory) setEditCategory(data.socialCategory);
+        if (data.bankAccountNumber) setEditBank(data.bankAccountNumber);
+        if (data.ifscCode) setEditIfsc(data.ifscCode);
+        if (data.address) setEditAddress(data.address);
       }
     } catch (err) {
       console.error(err);
@@ -68,7 +82,17 @@ const Profile = () => {
     if (validate()) {
       setIsSubmitting(true);
       try {
-        const response = await beneficiaryService.updateProfile({ email: editEmail, phone: editPhone });
+        const payload = {
+          email: editEmail,
+          phone: editPhone,
+          aadhaarNumber: editAadhaar,
+          annualIncome: editIncome ? parseFloat(editIncome) : null,
+          socialCategory: editCategory,
+          bankAccountNumber: editBank,
+          ifscCode: editIfsc,
+          address: editAddress
+        };
+        const response = await beneficiaryService.updateProfile(payload);
         if (response && response.success !== false) {
           localStorage.setItem('userEmail', editEmail);
           setIsEditing(false);
@@ -110,7 +134,7 @@ const Profile = () => {
 
           <div style={{ width: '100%', marginTop: '1rem', textAlign: 'left' }}>
             {isEditing ? (
-              <form onSubmit={handleProfileSubmit}>
+              <form onSubmit={handleProfileSubmit} style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                   <label style={{ fontSize: '0.85rem' }}>Email</label>
                   <input className="form-control" value={editEmail} onChange={(e) => { setEditEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: '' }); }} />
@@ -121,6 +145,31 @@ const Profile = () => {
                   <input className="form-control" value={editPhone} onChange={(e) => { setEditPhone(e.target.value); if (errors.phone) setErrors({ ...errors, phone: '' }); }} />
                   {errors.phone && <span style={{ color: '#be123c', fontSize: '0.8rem' }}>{errors.phone}</span>}
                 </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>Aadhaar Number</label>
+                  <input className="form-control" value={editAadhaar} onChange={(e) => setEditAadhaar(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>Annual Income</label>
+                  <input type="number" className="form-control" value={editIncome} onChange={(e) => setEditIncome(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>Social Category</label>
+                  <input className="form-control" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>Bank Account Number</label>
+                  <input className="form-control" value={editBank} onChange={(e) => setEditBank(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>IFSC Code</label>
+                  <input className="form-control" value={editIfsc} onChange={(e) => setEditIfsc(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem' }}>Address</label>
+                  <textarea className="form-control" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} rows="2"></textarea>
+                </div>
+
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
                   <button type="submit" className="btn-brand" disabled={isSubmitting}>
                     {isSubmitting ? 'Saving...' : 'Save'}
@@ -140,7 +189,7 @@ const Profile = () => {
                   <FaPhone style={{ marginRight: '10px', color: '#2563eb' }} />
                   <span>{editPhone || 'No phone provided'}</span>
                 </div>
-                <button className="btn-outline" style={{ marginTop: '1.5rem', width: '100%', justifyContent: 'center' }} onClick={() => setIsEditing(true)}>Edit Contact Info</button>
+                <button className="btn-outline" style={{ marginTop: '1.5rem', width: '100%', justifyContent: 'center' }} onClick={() => setIsEditing(true)}>Edit Profile</button>
               </>
             )}
           </div>
@@ -180,9 +229,12 @@ const Profile = () => {
                   <FaUser style={{ marginRight: '10px' }} /> Profile Information
                 </h3>
                 <ProfileDetailRow label="Account Holder" value={userName} />
-                <ProfileDetailRow label="Registered Email" value={userEmail} />
+                <ProfileDetailRow label="Registered Email" value={profileData?.email || userEmail} />
+                <ProfileDetailRow label="Contact Mobile" value={profileData?.phone || 'Submitted upon applying'} />
                 <ProfileDetailRow label="Aadhaar Verification" value={profileData?.aadhaarNumber ? `Aadhaar ending in ****${profileData.aadhaarNumber.slice(-4)}` : 'Submitted upon applying'} />
+                <ProfileDetailRow label="Social Category" value={profileData?.socialCategory || 'Submitted upon applying'} />
                 <ProfileDetailRow label="Income Bracket" value={profileData?.annualIncome ? `₹${profileData.annualIncome}` : 'Submitted upon applying'} />
+                <ProfileDetailRow label="Registered Address" value={profileData?.address || 'Submitted upon applying'} />
               </div>
 
               <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '2rem', boxShadow: 'var(--shadow-sm)' }}>

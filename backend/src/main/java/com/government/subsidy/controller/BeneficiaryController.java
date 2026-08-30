@@ -3,14 +3,18 @@ package com.government.subsidy.controller;
 import com.government.subsidy.model.BeneficiaryProfile;
 import com.government.subsidy.service.BeneficiaryService;
 import jakarta.validation.Valid;
+import com.government.subsidy.dto.ProfileDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/api/v1/beneficiaries", "/api/beneficiaries"})
+@RequestMapping({ "/api/v1/beneficiaries", "/api/beneficiaries" })
 public class BeneficiaryController {
 
     private final BeneficiaryService beneficiaryService;
@@ -25,7 +29,8 @@ public class BeneficiaryController {
     }
 
     @PostMapping("/{userId}")
-    public ResponseEntity<?> createProfile(@PathVariable @NonNull Long userId, @Valid @RequestBody BeneficiaryProfile profile) {
+    public ResponseEntity<?> createProfile(@PathVariable @NonNull Long userId,
+            @Valid @RequestBody BeneficiaryProfile profile) {
         return ResponseEntity.ok(beneficiaryService.createProfile(userId, profile));
     }
 
@@ -35,7 +40,8 @@ public class BeneficiaryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BeneficiaryProfile> updateProfile(@PathVariable @NonNull Long id, @RequestBody BeneficiaryProfile profile) {
+    public ResponseEntity<BeneficiaryProfile> updateProfile(@PathVariable @NonNull Long id,
+            @RequestBody BeneficiaryProfile profile) {
         return ResponseEntity.ok(beneficiaryService.updateProfile(id, profile));
     }
 
@@ -43,5 +49,15 @@ public class BeneficiaryController {
     public ResponseEntity<Void> deleteProfile(@PathVariable @NonNull Long id) {
         beneficiaryService.deleteProfile(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ProfileDTO> getMyProfile(Principal principal) {
+        return ResponseEntity.ok(beneficiaryService.getMyProfileDTO(principal.getName()));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<ProfileDTO> updateMyProfile(Principal principal, @RequestBody ProfileDTO profileDTO) {
+        return ResponseEntity.ok(beneficiaryService.updateMyProfileDTO(principal.getName(), profileDTO));
     }
 }

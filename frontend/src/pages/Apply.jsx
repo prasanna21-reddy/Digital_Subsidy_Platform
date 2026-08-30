@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaFileInvoice, FaCheckCircle, FaUpload, FaArrowRight,
   FaTractor, FaGraduationCap, FaHeartbeat, FaStore, FaTools, FaIdCard, FaUserCheck
@@ -9,8 +9,10 @@ import { applicationService } from '../services/applicationService';
 
 const Apply = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [schemes, setSchemes] = useState([]);
   const [selectedSchemeId, setSelectedSchemeId] = useState('');
+  const preSelectedSchemeId = location.state?.schemeId || new URLSearchParams(location.search).get('schemeId');
   const [income, setIncome] = useState('150000');
   const [category, setCategory] = useState('GENERAL');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -73,7 +75,13 @@ const Apply = () => {
     try {
       const data = await schemeService.getSchemes();
       setSchemes(data || []);
-      if (data && data.length > 0) setSelectedSchemeId(data[0].id);
+      if (data && data.length > 0) {
+        if (preSelectedSchemeId && data.find(s => String(s.id) === String(preSelectedSchemeId))) {
+          setSelectedSchemeId(preSelectedSchemeId);
+        } else {
+          setSelectedSchemeId(data[0].id);
+        }
+      }
     } catch (e) {
       console.error(e);
     }

@@ -1,13 +1,10 @@
 import { apiClient } from './apiClient';
 
 export const beneficiaryService = {
-    getProfile: async (userId = '') => {
+    getProfile: async () => {
         console.log(`[beneficiaryService] Fetching user profile`);
         try {
-            if (userId) {
-                return await apiClient.request(`/beneficiaries/${userId}`);
-            }
-            return await apiClient.request('/beneficiaries');
+            return await apiClient.request(`/beneficiaries/me`);
         } catch (error) {
             console.error('[beneficiaryService] Fetch profile error:', error);
             return {};
@@ -17,8 +14,7 @@ export const beneficiaryService = {
     updateProfile: async (profileData) => {
         console.log(`[beneficiaryService] Updating profile:`, profileData);
         try {
-            const userId = localStorage.getItem('userId') || '1';
-            return await apiClient.request(`/beneficiaries/${userId}`, {
+            return await apiClient.request(`/beneficiaries/me`, {
                 method: 'PUT',
                 body: JSON.stringify(profileData),
             });

@@ -25,23 +25,76 @@ public class BeneficiaryProfile {
     @Column(nullable = false)
     private String ifscCode;
 
-    public BeneficiaryProfile() {}
+    @Column
+    private Double annualIncome;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @Column
+    private String socialCategory;
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public BeneficiaryProfile() {
+    }
 
-    public String getAadhaarNumber() { return aadhaarNumber; }
-    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getAddress() { return address; }
-    public void setAddress(String address) { this.address = address; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getBankAccountNumber() { return bankAccountNumber; }
-    public void setBankAccountNumber(String bankAccountNumber) { this.bankAccountNumber = bankAccountNumber; }
+    public User getUser() {
+        return user;
+    }
 
-    public String getIfscCode() { return ifscCode; }
-    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getBankAccountNumber() {
+        return bankAccountNumber;
+    }
+
+    public void setBankAccountNumber(String bankAccountNumber) {
+        this.bankAccountNumber = bankAccountNumber;
+    }
+
+    public String getIfscCode() {
+        return ifscCode;
+    }
+
+    public void setIfscCode(String ifscCode) {
+        this.ifscCode = ifscCode;
+    }
+
+    public Double getAnnualIncome() {
+        return annualIncome;
+    }
+
+    public void setAnnualIncome(Double annualIncome) {
+        this.annualIncome = annualIncome;
+    }
+
+    public String getSocialCategory() {
+        return socialCategory;
+    }
+
+    public void setSocialCategory(String socialCategory) {
+        this.socialCategory = socialCategory;
+    }
 }
