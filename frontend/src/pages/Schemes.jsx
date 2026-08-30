@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaPlusCircle, FaTrash, FaEdit } from 'react-icons/fa';
 import { schemeService } from '../services/schemeService';
 
 const Schemes = () => {
+  const navigate = useNavigate();
   const [schemes, setSchemes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -16,6 +17,16 @@ const Schemes = () => {
 
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'CITIZEN';
   const isAdmin = userRole.toUpperCase() === 'ADMIN';
+  const isLoggedIn = !!localStorage.getItem('jwtToken');
+
+  const handleApplyClick = (e) => {
+    e.preventDefault();
+    if (isLoggedIn) {
+      navigate('/apply');
+    } else {
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     fetchSchemes();
@@ -127,9 +138,13 @@ const Schemes = () => {
                 </button>
               </div>
             ) : (
-              <Link to="/apply" className="btn-brand" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
+              <button
+                onClick={handleApplyClick}
+                className="btn-brand"
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
                 Apply for Scheme
-              </Link>
+              </button>
             )}
           </div>
         ))}

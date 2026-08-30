@@ -7,7 +7,7 @@ import {
 const Home = () => {
   return (
     <div className="home-container animate-fade-in" style={{ paddingBottom: '3rem', background: '#ffffff' }}>
-      
+
       {/* Hero Section */}
       <section className="hero-section" style={{ padding: '3.5rem 2rem', marginBottom: '3rem' }}>
         <span className="badge badge-submitted" style={{ marginBottom: '1rem', padding: '0.45rem 1.1rem', background: '#fef9c3', color: '#854d0e', border: '1px solid #fef08a' }}>
@@ -21,10 +21,10 @@ const Home = () => {
         </p>
 
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/apply" className="btn-brand" style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', textDecoration: 'none' }}>
+          <Link to="/login" className="btn-brand" style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', textDecoration: 'none' }}>
             Apply for Subsidy <FaArrowRight />
           </Link>
-          <Link to="/track-status" className="btn-outline" style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', textDecoration: 'none' }}>
+          <Link to="/login" className="btn-outline" style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', textDecoration: 'none' }}>
             Track Application Status
           </Link>
         </div>
@@ -38,7 +38,7 @@ const Home = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
-          
+
           <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid #e2e8f0' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, marginBottom: '1rem' }}>
               1
@@ -87,7 +87,7 @@ const Home = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-          
+
           <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#ffffff' }}>
             <div>
               <span className="badge badge-submitted" style={{ marginBottom: '0.75rem' }}>Housing Welfare</span>
@@ -97,7 +97,7 @@ const Home = () => {
                 <strong>Eligibility:</strong> Annual income ≤ ₹3,00,000 / Category: General, OBC, SC, ST
               </div>
             </div>
-            <Link to="/apply" className="btn-brand" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
+            <Link to="/login" className="btn-brand" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
               Apply Now
             </Link>
           </div>
@@ -111,7 +111,7 @@ const Home = () => {
                 <strong>Eligibility:</strong> Small & marginal farmers with valid land records.
               </div>
             </div>
-            <Link to="/apply" className="btn-emerald" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
+            <Link to="/login" className="btn-emerald" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
               Apply Now
             </Link>
           </div>
@@ -125,7 +125,7 @@ const Home = () => {
                 <strong>Eligibility:</strong> Students with family annual income below ₹2,50,000.
               </div>
             </div>
-            <Link to="/apply" className="btn-brand" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
+            <Link to="/login" className="btn-brand" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
               Apply Now
             </Link>
           </div>

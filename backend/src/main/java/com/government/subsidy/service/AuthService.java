@@ -24,9 +24,9 @@ public class AuthService {
     private final JwtUtils jwtUtils;
 
     public AuthService(AuthenticationManager authenticationManager,
-                       UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       JwtUtils jwtUtils) {
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtils jwtUtils) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -42,7 +42,8 @@ public class AuthService {
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email " + loginRequest.getEmail()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("User not found with email " + loginRequest.getEmail()));
 
         return new JwtResponse(jwt, user.getEmail(), user.getFullName(), user.getRole());
     }
@@ -57,18 +58,7 @@ public class AuthService {
         user.setEmail(signupRequest.getEmail());
         user.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
         user.setFullName(signupRequest.getFullName());
-        
-        Role userRole = Role.CITIZEN;
-        if (signupRequest.getRole() != null) {
-            String roleStr = signupRequest.getRole().toUpperCase().replace(" ", "_");
-            if (roleStr.equals("BENEFICIARY")) roleStr = "CITIZEN";
-            try {
-                userRole = Role.valueOf(roleStr);
-            } catch (Exception e) {
-                userRole = Role.CITIZEN;
-            }
-        }
-        user.setRole(userRole);
+        user.setRole(Role.CITIZEN); // Enforce citizen role only
 
         userRepository.save(user);
         return "User registered successfully!";

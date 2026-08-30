@@ -104,8 +104,10 @@ const Apply = () => {
     setIsSubmitting(true);
 
     try {
+      const selectedScheme = schemes.find(s => String(s.id) === String(selectedSchemeId));
       const payload = {
         schemeId: selectedSchemeId || 1,
+        schemeName: selectedScheme?.name || 'Government Welfare Scheme',
         beneficiaryType,
         specificDetails,
         income,

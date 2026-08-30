@@ -12,7 +12,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/login?type=user');
+    navigate('/login');
   };
 
   const getDashboardPath = () => {
@@ -26,17 +26,17 @@ const Navbar = () => {
   };
 
   return (
-    <nav style={{ 
-      background: '#ffffff', 
-      borderBottom: '1px solid #e2e8f0', 
-      position: 'sticky', 
-      top: 0, 
-      zIndex: 100, 
+    <nav style={{
+      background: '#ffffff',
+      borderBottom: '1px solid #e2e8f0',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
       padding: '0.85rem 2rem',
       boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
     }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        
+
         {/* Brand Logo */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
           <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'linear-gradient(135deg, #38bdf8 0%, #60a5fa 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.25rem', boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)' }}>
@@ -74,20 +74,20 @@ const Navbar = () => {
             </>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              
+
               {/* User Entry Button */}
-              <Link 
-                to="/login?type=user" 
-                className="btn-brand" 
+              <Link
+                to="/login"
+                className="btn-brand"
                 style={{ padding: '0.55rem 1.25rem', fontSize: '0.88rem', textDecoration: 'none', background: 'linear-gradient(135deg, #38bdf8 0%, #60a5fa 100%)', color: '#ffffff' }}
               >
                 <FaUserCheck /> User Login
               </Link>
 
               {/* Admin / Officer Entry Button */}
-              <Link 
-                to="/login?type=admin" 
-                className="btn-outline" 
+              <Link
+                to="/officer-login"
+                className="btn-outline"
                 style={{ padding: '0.55rem 1.25rem', fontSize: '0.88rem', textDecoration: 'none', background: '#f0fdf4', color: '#15803d', borderColor: '#bbf7d0' }}
               >
                 <FaUserShield /> Officer Portal

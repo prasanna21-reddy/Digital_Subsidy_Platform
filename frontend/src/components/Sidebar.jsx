@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FaHome, FaFileAlt, FaUserEdit, FaCheckCircle,
-  FaMoneyBillWave, FaSignOutAlt, FaPlusCircle,
+  FaMoneyBillWave, FaSignOutAlt,
   FaSearch, FaHistory, FaBell, FaChartBar
 } from 'react-icons/fa';
 import { authService } from '../services/authService';
@@ -45,7 +45,6 @@ const Sidebar = () => {
   } else {
     navLinks = [
       { name: 'My Applications', path: '/dashboard', icon: <FaHome /> },
-      { name: 'Apply for Scheme', path: '/apply', icon: <FaPlusCircle /> },
       { name: 'Track Status', path: '/track-status', icon: <FaSearch /> },
       { name: 'Available Schemes', path: '/schemes', icon: <FaFileAlt /> },
       { name: 'Fund Utilization', path: '/utilization-report', icon: <FaChartBar /> },

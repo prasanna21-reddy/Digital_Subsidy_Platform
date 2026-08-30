@@ -29,7 +29,7 @@ const TrackStatus = () => {
       } else {
         data = await applicationService.getApplications();
       }
-      
+
       setAllApps(data || []);
       if (data && data.length > 0) {
         setActiveApp(data[0]);
@@ -95,7 +95,7 @@ const TrackStatus = () => {
 
   return (
     <div className="animate-fade-in" style={{ width: '100%', padding: '0.5rem 0' }}>
-      
+
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <span className="badge badge-submitted" style={{ marginBottom: '0.5rem' }}>Real-Time Verification Tracking</span>
         <h2 style={{ fontSize: '2rem', color: '#0f172a', fontWeight: 800 }}>Application Lifecycle Tracker</h2>
@@ -156,7 +156,7 @@ const TrackStatus = () => {
         </div>
       ) : activeApp ? (
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '1rem', padding: '2.5rem', maxWidth: '850px', margin: '0 auto', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', marginBottom: '2rem' }}>
             <div>
               <span className="badge badge-submitted" style={{ marginBottom: '0.4rem', display: 'inline-block' }}>
@@ -169,17 +169,11 @@ const TrackStatus = () => {
                 Submitted on: {activeApp.submittedDate ? new Date(activeApp.submittedDate).toLocaleDateString() : 'Today'}
               </p>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Eligibility Score</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0284c7' }}>
-                {activeApp.eligibilityScore || 85} / 100
-              </div>
-            </div>
           </div>
 
           {/* Stepper Chain */}
           <div className="workflow-stepper" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', margin: '2rem 0', flexWrap: 'wrap' }}>
-            
+
             <div className={`workflow-step ${getStageStepState(1, activeApp.status)}`} style={{ flex: 1, textAlign: 'center' }}>
               <div className="step-icon" style={{ width: '36px', height: '36px', borderRadius: '50%', margin: '0 auto 0.5rem auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, background: getStageStepState(1, activeApp.status) === 'completed' ? '#10b981' : '#0284c7', color: '#fff' }}>1</div>
               <div className="step-label" style={{ color: '#0f172a', fontWeight: 600, fontSize: '0.9rem' }}>Citizen Submitted</div>

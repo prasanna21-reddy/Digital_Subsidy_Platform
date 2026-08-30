@@ -46,12 +46,12 @@ const BeneficiaryDashboard = () => {
 
   return (
     <div className="dashboard-page animate-fade-in" style={{ padding: '1rem 0', background: '#ffffff', minHeight: '80vh' }}>
-      
+
       {/* Welcome Banner */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
         <div>
           <h2 style={{ fontSize: '1.75rem', color: '#0f172a', fontWeight: 800 }}>Welcome back, {userName}!</h2>
-          <p style={{ color: '#475569', fontSize: '0.95rem' }}>Track your government subsidy applications and check real-time eligibility scores.</p>
+          <p style={{ color: '#475569', fontSize: '0.95rem' }}>Track your government subsidy applications and monitor your approval status.</p>
         </div>
         <Link to="/apply" className="btn-brand" style={{ textDecoration: 'none' }}>
           <FaPlusCircle /> Apply New Scheme
@@ -111,7 +111,6 @@ const BeneficiaryDashboard = () => {
                   <th>Application ID</th>
                   <th>Scheme Name</th>
                   <th>Submitted Date</th>
-                  <th>Eligibility Score</th>
                   <th>Current Status</th>
                   <th>Action</th>
                 </tr>
@@ -122,11 +121,6 @@ const BeneficiaryDashboard = () => {
                     <td><strong>#APP-{app.id}</strong></td>
                     <td>{app.scheme?.name || 'Government Subsidy Scheme'}</td>
                     <td>{app.submittedDate ? new Date(app.submittedDate).toLocaleDateString() : 'N/A'}</td>
-                    <td>
-                      <span style={{ fontWeight: 700, color: (app.eligibilityScore ?? 0) >= 50 ? '#047857' : '#be123c' }}>
-                        {app.eligibilityScore ?? 0} / 100
-                      </span>
-                    </td>
                     <td>{getStatusBadge(app.status)}</td>
                     <td>
                       <Link to="/track-status" className="btn-outline" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', textDecoration: 'none' }}>

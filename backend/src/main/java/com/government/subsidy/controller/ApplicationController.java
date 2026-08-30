@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping({"/api/v1/applications", "/api/applications"})
+@RequestMapping({ "/api/v1/applications", "/api/applications" })
 public class ApplicationController {
 
     @Autowired
@@ -36,8 +36,16 @@ public class ApplicationController {
     @GetMapping("/my-applications")
     public ResponseEntity<List<Application>> getMyApplications() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName() : "citizen@gov.in";
+        String userEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser"))
+                ? auth.getName()
+                : "citizen@gov.in";
         return ResponseEntity.ok(applicationService.getApplicationsForCitizen(userEmail));
+    }
+
+    // Alias used by frontend service
+    @GetMapping("/my")
+    public ResponseEntity<List<Application>> getMyApplicationsAlias() {
+        return getMyApplications();
     }
 
     @GetMapping("/{id}/status")
@@ -54,14 +62,27 @@ public class ApplicationController {
 
     @PostMapping
     public ResponseEntity<?> submitApplication(@RequestBody Map<String, Object> payload) {
+        return doSubmit(payload);
+    }
+
+    // Alias used by frontend service
+    @PostMapping("/submit")
+    public ResponseEntity<?> submitApplicationAlias(@RequestBody Map<String, Object> payload) {
+        return doSubmit(payload);
+    }
+
+    private ResponseEntity<?> doSubmit(Map<String, Object> payload) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String userEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName() : null;
-            
+            String userEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser"))
+                    ? auth.getName()
+                    : null;
+
             Application application = applicationService.submitApplication(payload, userEmail);
             return ResponseEntity.status(HttpStatus.CREATED).body(application);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("status", "error", "message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
         }
@@ -74,7 +95,9 @@ public class ApplicationController {
 
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String officerEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName() : "officer@gov.in";
+            String officerEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser"))
+                    ? auth.getName()
+                    : "officer@gov.in";
 
             String actionStr = "APPROVE";
             String remarks = null;
@@ -83,8 +106,10 @@ public class ApplicationController {
             if (body != null) {
                 if (body.containsKey("status")) {
                     targetStatus = body.get("status").toString();
-                    if (targetStatus.contains("REJECT")) actionStr = "REJECT";
-                    else if (targetStatus.contains("CORRECTION")) actionStr = "REQUEST_CORRECTION";
+                    if (targetStatus.contains("REJECT"))
+                        actionStr = "REJECT";
+                    else if (targetStatus.contains("CORRECTION"))
+                        actionStr = "REQUEST_CORRECTION";
                 }
                 if (body.containsKey("remarks")) {
                     remarks = body.get("remarks").toString();
@@ -100,7 +125,8 @@ public class ApplicationController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("status", "error", "message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("status", "error", "message", e.getMessage()));
         }

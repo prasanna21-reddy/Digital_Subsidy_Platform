@@ -9,6 +9,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 // Pages - Auth
 import Login from './pages/Login';
 import Register from './pages/Register';
+import OfficerLogin from './pages/OfficerLogin';
 
 // Pages - Dashboards
 import BeneficiaryDashboard from './pages/BeneficiaryDashboard';
@@ -42,6 +43,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
+          <Route path="officer-login" element={<OfficerLogin />} />
           <Route path="all-schemes" element={<Schemes />} />
           <Route path="*" element={<NotFound />} />
         </Route>
