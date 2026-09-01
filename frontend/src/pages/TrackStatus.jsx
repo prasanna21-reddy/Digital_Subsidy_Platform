@@ -11,6 +11,15 @@ const TrackStatus = () => {
 
   const userRole = (localStorage.getItem('userRole') || 'CITIZEN').toUpperCase();
 
+  const friendlyStatus = (status) => {
+    if (!status) return 'Unknown';
+    return status
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -78,8 +87,10 @@ const TrackStatus = () => {
 
     const statusMap = {
       'SUBMITTED': 1,
+      'PENDING_FIELD_VERIFICATION': 1,
       'CORRECTION_REQUIRED': 1,
       'FIELD_VERIFIED': 2,
+      'FORWARDED_TO_DISTRICT': 2,
       'DISTRICT_VERIFIED': 3,
       'APPROVED_FOR_PAYMENT': 4,
       'PAYMENT_PENDING': 4,
@@ -143,7 +154,7 @@ const TrackStatus = () => {
                   fontWeight: 600
                 }}
               >
-                #APP-{app.id} ({app.status})
+                #APP-{app.id} ({friendlyStatus(app.status)})
               </button>
             ))}
           </div>
@@ -160,7 +171,7 @@ const TrackStatus = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', marginBottom: '2rem' }}>
             <div>
               <span className="badge badge-submitted" style={{ marginBottom: '0.4rem', display: 'inline-block' }}>
-                Status: {activeApp.status}
+                Status: {friendlyStatus(activeApp.status)}
               </span>
               <h3 style={{ fontSize: '1.5rem', color: '#0f172a', fontWeight: 700, margin: '0.25rem 0' }}>
                 #APP-{activeApp.id} - {activeApp.scheme?.name || 'Government Subsidy Scheme'}
@@ -200,14 +211,43 @@ const TrackStatus = () => {
 
           </div>
 
-          {/* Stage Remarks Box */}
-          <div style={{ marginTop: '2.5rem', padding: '1.25rem', background: '#f0f9ff', borderRadius: '0.5rem', border: '1px solid #bae6fd' }}>
-            <h4 style={{ color: '#0369a1', fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <FaClock style={{ color: '#0284c7' }} /> System & Verification Audit Log Remarks
-            </h4>
-            <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0 }}>
-              {activeApp.remarks || 'Application is progressing through the 3-level verification pipeline smoothly.'}
-            </p>
+          {/* Payment & Milestone Progress */}
+          <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+            <h4 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: 700, marginBottom: '1.25rem' }}>Payment & Milestone Progress</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+
+              {/* Stage 1 */}
+              <div style={{ padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.5rem', flex: 1, minWidth: '160px' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.2rem' }}>Stage 1 (Initial)</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Amount: ₹{((activeApp.scheme?.budget || 100000) * 0.4).toLocaleString()}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: activeApp.status === 'PAYMENT_SUCCESSFUL' ? '#10b981' : (['PAYMENT_ELIGIBLE', 'APPROVED_FOR_PAYMENT', 'PAYMENT_PENDING'].includes(activeApp.status) ? '#f59e0b' : '#94a3b8') }}>
+                  {activeApp.status === 'PAYMENT_SUCCESSFUL' ? '✅ Released' : (['PAYMENT_ELIGIBLE', 'APPROVED_FOR_PAYMENT', 'PAYMENT_PENDING'].includes(activeApp.status) ? '🔄 Pending Release' : ((['FIELD_REJECTED', 'DISTRICT_REJECTED', 'REJECTED'].includes(activeApp.status)) ? '❌ Cancelled' : '🔒 Locked'))}
+                </div>
+              </div>
+
+              <div style={{ color: '#cbd5e1', fontSize: '1.25rem', fontWeight: 'bold' }}>→</div>
+
+              {/* Stage 2 */}
+              <div style={{ padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.5rem', flex: 1, minWidth: '160px' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.2rem' }}>Stage 2 (Milestone 1)</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Amount: ₹{((activeApp.scheme?.budget || 100000) * 0.3).toLocaleString()}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: activeApp.status !== 'PAYMENT_SUCCESSFUL' ? '#94a3b8' : '#f59e0b' }}>
+                  {activeApp.status !== 'PAYMENT_SUCCESSFUL' ? '🔒 Locked' : '🔄 Needs Verification'}
+                </div>
+              </div>
+
+              <div style={{ color: '#cbd5e1', fontSize: '1.25rem', fontWeight: 'bold' }}>→</div>
+
+              {/* Stage 3 */}
+              <div style={{ padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.5rem', flex: 1, minWidth: '160px' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.2rem' }}>Stage 3 (Milestone 2)</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Amount: ₹{((activeApp.scheme?.budget || 100000) * 0.3).toLocaleString()}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#94a3b8' }}>
+                  🔒 Locked
+                </div>
+              </div>
+
+            </div>
           </div>
 
         </div>

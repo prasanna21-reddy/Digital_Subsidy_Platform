@@ -15,6 +15,14 @@ const Schemes = () => {
   const [newBudget, setNewBudget] = useState('500000');
   const [newCriteria, setNewCriteria] = useState('');
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editScheme, setEditScheme] = useState(null);
+  const [editSchemeName, setEditSchemeName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editBudget, setEditBudget] = useState('');
+  const [editCriteria, setEditCriteria] = useState('');
+
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'CITIZEN';
   const isAdmin = userRole.toUpperCase() === 'ADMIN';
   const isLoggedIn = !!localStorage.getItem('jwtToken');
@@ -71,8 +79,45 @@ const Schemes = () => {
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete scheme: ${name}?`)) {
+    try {
       await schemeService.deleteScheme(id);
+    } catch (e) {
+      console.error(e);
+    }
+    fetchSchemes();
+  };
+
+  const handleEdit = (scheme) => {
+    setEditScheme(scheme);
+    setEditSchemeName(scheme.name || '');
+    setEditCategory(scheme.category || 'General');
+    setEditDescription(scheme.description || '');
+    setEditBudget(String(scheme.budget || scheme.maxAmount || 500000));
+    setEditCriteria(scheme.eligibilityCriteria || '');
+    setShowEditModal(true);
+  };
+
+  const handleEditScheme = async (e) => {
+    e.preventDefault();
+    if (!editSchemeName.trim()) return;
+    const updated = {
+      id: editScheme.id,
+      name: editSchemeName,
+      category: editCategory,
+      description: editDescription,
+      budget: parseFloat(editBudget) || editScheme.budget,
+      eligibilityCriteria: editCriteria,
+      active: editScheme.active !== false,
+    };
+    try {
+      await schemeService.updateScheme(updated.id, updated);
+      alert(`Scheme "${editSchemeName}" updated successfully!`);
+      setShowEditModal(false);
+      setEditScheme(null);
+      fetchSchemes();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update scheme: ' + (err.message || 'Server error'));
       fetchSchemes();
     }
   };
@@ -130,7 +175,7 @@ const Schemes = () => {
 
             {isAdmin ? (
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="btn-outline" style={{ flex: 1, justifyContent: 'center' }}>
+                <button onClick={() => handleEdit(scheme)} className="btn-outline" style={{ flex: 1, justifyContent: 'center' }}>
                   <FaEdit /> Edit
                 </button>
                 <button onClick={() => handleDelete(scheme.id, scheme.name)} className="btn-brand" style={{ background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', borderColor: '#fb7185', flex: 1, justifyContent: 'center' }}>
@@ -189,6 +234,45 @@ const Schemes = () => {
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn-outline">Cancel</button>
               <button type="submit" className="btn-brand">Save Scheme</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Scheme Modal */}
+      {showEditModal && editScheme && isAdmin && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <form onSubmit={handleEditScheme} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '2rem', width: '100%', maxWidth: '550px', boxShadow: 'var(--shadow-lg)' }}>
+            <h3 style={{ color: '#0f172a', marginBottom: '1.25rem', fontWeight: 700 }}>Edit Scheme — #SCH-{editScheme.id}</h3>
+
+            <div className="form-group">
+              <label>Scheme Name</label>
+              <input type="text" className="form-control" value={editSchemeName} onChange={e => setEditSchemeName(e.target.value)} required />
+            </div>
+
+            <div className="form-group">
+              <label>Category</label>
+              <input type="text" className="form-control" value={editCategory} onChange={e => setEditCategory(e.target.value)} required />
+            </div>
+
+            <div className="form-group">
+              <label>Grant Amount / Budget (₹)</label>
+              <input type="number" className="form-control" value={editBudget} onChange={e => setEditBudget(e.target.value)} required />
+            </div>
+
+            <div className="form-group">
+              <label>Eligibility Guidelines</label>
+              <textarea className="form-control" rows="2" value={editCriteria} onChange={e => setEditCriteria(e.target.value)} />
+            </div>
+
+            <div className="form-group">
+              <label>Description</label>
+              <textarea className="form-control" rows="2" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button type="button" onClick={() => { setShowEditModal(false); setEditScheme(null); }} className="btn-outline">Cancel</button>
+              <button type="submit" className="btn-brand" style={{ background: 'linear-gradient(135deg,#38bdf8,#0284c7)', borderColor: '#38bdf8' }}>Update Scheme</button>
             </div>
           </form>
         </div>

@@ -11,7 +11,7 @@ public class Application {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "scheme_id", nullable = false)
+    @JoinColumn(name = "scheme_id", nullable = true)
     private Scheme scheme;
 
     @ManyToOne
@@ -23,32 +23,68 @@ public class Application {
     private ApplicationStatus status = ApplicationStatus.SUBMITTED;
 
     private LocalDateTime submittedDate = LocalDateTime.now();
-    
+
     private Integer eligibilityScore;
 
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
-    public Application() {}
+    public Application() {
+    }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Scheme getScheme() { return scheme; }
-    public void setScheme(Scheme scheme) { this.scheme = scheme; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public BeneficiaryProfile getBeneficiary() { return beneficiary; }
-    public void setBeneficiary(BeneficiaryProfile beneficiary) { this.beneficiary = beneficiary; }
+    public Scheme getScheme() {
+        return scheme;
+    }
 
-    public ApplicationStatus getStatus() { return status; }
-    public void setStatus(ApplicationStatus status) { this.status = status; }
+    public void setScheme(Scheme scheme) {
+        this.scheme = scheme;
+    }
 
-    public LocalDateTime getSubmittedDate() { return submittedDate; }
-    public void setSubmittedDate(LocalDateTime submittedDate) { this.submittedDate = submittedDate; }
+    public BeneficiaryProfile getBeneficiary() {
+        return beneficiary;
+    }
 
-    public Integer getEligibilityScore() { return eligibilityScore; }
-    public void setEligibilityScore(Integer eligibilityScore) { this.eligibilityScore = eligibilityScore; }
+    public void setBeneficiary(BeneficiaryProfile beneficiary) {
+        this.beneficiary = beneficiary;
+    }
 
-    public String getRemarks() { return remarks; }
-    public void setRemarks(String remarks) { this.remarks = remarks; }
+    public ApplicationStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ApplicationStatus status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getSubmittedDate() {
+        return submittedDate;
+    }
+
+    public void setSubmittedDate(LocalDateTime submittedDate) {
+        this.submittedDate = submittedDate;
+    }
+
+    public Integer getEligibilityScore() {
+        return eligibilityScore;
+    }
+
+    public void setEligibilityScore(Integer eligibilityScore) {
+        this.eligibilityScore = eligibilityScore;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
+    }
 }

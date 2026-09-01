@@ -11,7 +11,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const rawRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'CITIZEN';
   const userName = localStorage.getItem('userName') || 'User';
-  const role = rawRole.toUpperCase().replace(' ', '_');
+  const role = rawRole.toUpperCase().replace(/[\s-]+/g, '_').replace(/^ROLE_/, '');
 
   let navLinks = [];
 

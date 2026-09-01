@@ -1,0 +1,1 @@
+{"message":"could not execute statement [Column 'stage_id' cannot be null] [insert into workflow_history (action,action_date,application_id,comments,officer_id,stage_id) values (?,?,?,?,?,?)]; SQL [insert into workflow_history (action,action_date,application_id,comments,officer_id,stage_id) values (?,?,?,?,?,?)]; constraint [null]","status":"error"}

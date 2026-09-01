@@ -13,9 +13,13 @@ const OfficerLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
 
     useEffect(() => {
         setErrorMessage('');
+        setSuccessMessage('');
     }, []);
 
     const getDashboardPath = (role) => {
@@ -45,6 +49,35 @@ const OfficerLogin = () => {
     const handleLoginSubmit = async (event) => {
         event.preventDefault();
         setErrorMessage('');
+        setSuccessMessage('');
+
+        if (isForgotPassword) {
+            if (!email || !newPassword) {
+                setErrorMessage('Please enter your email/ID and new password.');
+                return;
+            }
+            if (newPassword.length < 6) {
+                setErrorMessage('New password must be at least 6 characters.');
+                return;
+            }
+            setIsLoading(true);
+            try {
+                const response = await authService.resetPassword(email, newPassword);
+                if (response.success) {
+                    setSuccessMessage(response.message || 'Password updated! Please login.');
+                    setIsForgotPassword(false);
+                    setPassword('');
+                    setNewPassword('');
+                } else {
+                    setErrorMessage(response.error || 'Password reset failed.');
+                }
+            } catch (error) {
+                setErrorMessage(error.message || 'Could not connect to server.');
+            } finally {
+                setIsLoading(false);
+            }
+            return;
+        }
 
         if (!validateLogin()) return;
 
@@ -112,6 +145,19 @@ const OfficerLogin = () => {
                         </div>
                     )}
 
+                    {successMessage && (
+                        <div
+                            style={{
+                                background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d',
+                                padding: '0.85rem', borderRadius: 'var(--radius-md)',
+                                marginBottom: '1.5rem', textAlign: 'center',
+                                fontSize: '0.9rem', fontWeight: 600,
+                            }}
+                        >
+                            {successMessage}
+                        </div>
+                    )}
+
                     <form onSubmit={handleLoginSubmit}>
 
                         {/* Email */}
@@ -134,19 +180,19 @@ const OfficerLogin = () => {
                         {/* Password */}
                         <div className="form-group">
                             <label htmlFor="login-password" style={{ color: '#1e293b' }}>
-                                <FaLock /> Password
+                                <FaLock /> {isForgotPassword ? 'New Password' : 'Password'}
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     id="login-password"
                                     className="form-control"
-                                    placeholder="Enter password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder={isForgotPassword ? 'Enter new password' : 'Enter password'}
+                                    value={isForgotPassword ? newPassword : password}
+                                    onChange={(e) => isForgotPassword ? setNewPassword(e.target.value) : setPassword(e.target.value)}
                                     style={{ paddingRight: '2.5rem' }}
                                     required
-                                    autoComplete="current-password"
+                                    autoComplete={isForgotPassword ? 'new-password' : 'current-password'}
                                 />
                                 <button
                                     type="button"
@@ -166,7 +212,9 @@ const OfficerLogin = () => {
                         </div>
 
                         <div style={{ textAlign: 'right', marginBottom: '1.5rem', marginTop: '-0.5rem' }}>
-                            <a href="#" style={{ fontSize: '0.85rem', color: '#64748b', textDecoration: 'underline' }}>Forgot Password?</a>
+                            <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(!isForgotPassword); setErrorMessage(''); setSuccessMessage(''); }} style={{ fontSize: '0.85rem', color: '#64748b', textDecoration: 'underline' }}>
+                                {isForgotPassword ? 'Back to Login' : 'Forgot Password?'}
+                            </a>
                         </div>
 
                         {/* Submit */}
@@ -182,7 +230,7 @@ const OfficerLogin = () => {
                                 color: '#ffffff',
                             }}
                         >
-                            <FaSignInAlt /> {isLoading ? 'Authenticating...' : 'Secure Sign In'}
+                            <FaSignInAlt /> {isLoading ? 'Processing...' : (isForgotPassword ? 'Reset Password' : 'Secure Sign In')}
                         </button>
 
                     </form>

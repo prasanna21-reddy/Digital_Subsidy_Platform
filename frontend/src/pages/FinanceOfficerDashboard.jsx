@@ -1,36 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { applicationService } from '../services/applicationService';
 import {
   FaMoneyCheckAlt, FaRupeeSign, FaCheckCircle, FaCalendarAlt,
   FaEye, FaTimes, FaSearch, FaFilter, FaClock, FaChartBar
 } from 'react-icons/fa';
 
-/* ─── Mock Data ─── */
-const pendingPayments = [
-  { id: 'APP001', beneficiary: 'Ramu', scheme: 'Farmer Scheme', stage: 'Stage 1', amount: 20000, milestoneStatus: 'Completed', districtApproval: 'Approved', paymentStatus: 'Pending', bank: 'SBI ****4321', accountName: 'Ramu K.', ifsc: 'SBIN0001234' },
-  { id: 'APP002', beneficiary: 'Suresh', scheme: 'Housing Scheme', stage: 'Stage 2', amount: 15000, milestoneStatus: 'Completed', districtApproval: 'Approved', paymentStatus: 'Pending', bank: 'BOI ****8765', accountName: 'Suresh M.', ifsc: 'BKID0002345' },
-  { id: 'APP008', beneficiary: 'Lakshmi T.', scheme: 'Education Grant', stage: 'Stage 1', amount: 12000, milestoneStatus: 'Completed', districtApproval: 'Approved', paymentStatus: 'Pending', bank: 'Canara ****2233', accountName: 'Lakshmi T.', ifsc: 'CNRB0003456' },
-];
-
-const releasedPayments = [
-  { id: 'APP003', beneficiary: 'Ramu', scheme: 'Farmer Scheme', stage: 'Stage 1', amount: 20000, releaseDate: '10 Aug 2026', status: 'Released' },
-  { id: 'APP004', beneficiary: 'Kumar', scheme: 'Housing Scheme', stage: 'Stage 1', amount: 25000, releaseDate: '09 Aug 2026', status: 'Released' },
-  { id: 'APP005', beneficiary: 'Anitha Reddy', scheme: 'Farmer Subsidy', stage: 'Stage 1', amount: 18000, releaseDate: '07 Aug 2026', status: 'Released' },
-];
-
-const paymentHistory = [
-  { id: 'APP001', beneficiary: 'Ramu', scheme: 'Farmer Scheme', stage: 'Stage 1', amount: 20000, releaseDate: '10 Aug 2026', paymentStatus: 'Released' },
-  { id: 'APP002', beneficiary: 'Suresh', scheme: 'Housing Scheme', stage: 'Stage 2', amount: 15000, releaseDate: '—', paymentStatus: 'Pending' },
-  { id: 'APP003', beneficiary: 'Ramu', scheme: 'Farmer Scheme', stage: 'Stage 1', amount: 20000, releaseDate: '10 Aug 2026', paymentStatus: 'Released' },
-  { id: 'APP004', beneficiary: 'Kumar', scheme: 'Housing Scheme', stage: 'Stage 1', amount: 25000, releaseDate: '09 Aug 2026', paymentStatus: 'Released' },
-  { id: 'APP005', beneficiary: 'Anitha Reddy', scheme: 'Farmer Subsidy', stage: 'Stage 1', amount: 18000, releaseDate: '07 Aug 2026', paymentStatus: 'Released' },
-  { id: 'APP006', beneficiary: 'Mohan Das', scheme: 'Housing Scheme', stage: 'Stage 2', amount: 15000, releaseDate: '—', paymentStatus: 'Pending' },
-  { id: 'APP007', beneficiary: 'Kavitha P.', scheme: 'Education Grant', stage: 'Stage 1', amount: 10000, releaseDate: '05 Aug 2026', paymentStatus: 'Released' },
-  { id: 'APP008', beneficiary: 'Lakshmi T.', scheme: 'Education Grant', stage: 'Stage 1', amount: 12000, releaseDate: '—', paymentStatus: 'Pending' },
-];
+const readStoredMilestonePayments = () => {
+  const items = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('utilizationReports_')) continue;
+    try {
+      const reports = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!Array.isArray(reports)) continue;
+      reports.forEach((report) => {
+        if (!(report.financeEligible || report.status === 'DISTRICT_VERIFIED' || report.status === 'VERIFIED' || report.status === 'PAYMENT_SUCCESSFUL')) return;
+        items.push({
+          realId: report.id,
+          id: `APP${String(report.id).padStart(3, '0')}`,
+          beneficiary: report.beneficiaryName || key.replace('utilizationReports_', ''),
+          scheme: report.schemeName || 'Government Scheme',
+          stage: report.disbursementStage || 'Stage 1',
+          amount: Number(report.amountUtilized || 0),
+          milestoneStatus: 'Completed',
+          districtApproval: 'Approved',
+          paymentStatus: report.status === 'PAYMENT_SUCCESSFUL' ? 'Released' : 'Pending',
+          bank: report.bankAccountNumber || 'Bank details unavailable',
+          accountName: report.beneficiaryName || 'Citizen',
+          ifsc: report.ifscCode || 'IFSC unavailable',
+          releaseDate: report.verifiedOn || '—'
+        });
+      });
+    } catch (e) {
+      console.warn('Could not read finance milestone queue', e);
+    }
+  }
+  return items;
+};
 
 /* ─── Helpers ─── */
-const totalDisbursed = releasedPayments.reduce((s, p) => s + p.amount, 0);
-const totalPending = pendingPayments.reduce((s, p) => s + p.amount, 0);
+const totalDisbursed = 0;
+const totalPending = 0;
 
 const tabStyle = (active) => ({
   background: 'none', border: 'none',
@@ -49,13 +59,50 @@ const PaymentModal = ({ payment, onClose, onRelease }) => {
   const [releasing, setReleasing] = useState(false);
   const [released, setReleased] = useState(false);
 
+  // Determine unlocked stages based on utilization reports (milestones)
+  // Stage 1 is always unlocked for an eligible application.
+  // We check localStorage for any district-verified milestones to unlock further stages.
+  let stage2Unlocked = false;
+  let stage3Unlocked = false;
+
+  try {
+    let verifiedCount = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('utilizationReports_')) {
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        arr.forEach(r => {
+          // If it belongs to this beneficiary and is verified by district
+          if ((r.beneficiaryName === payment.beneficiary || r.beneficiaryName === payment.accountName || key.includes(payment.beneficiary)) &&
+            (r.status === 'DISTRICT_VERIFIED' || r.status === 'VERIFIED')) {
+            verifiedCount++;
+          }
+        });
+      }
+    }
+    if (verifiedCount >= 1) stage2Unlocked = true;
+    if (verifiedCount >= 2) stage3Unlocked = true;
+  } catch (e) {
+    console.warn("Could not determine milestone stages");
+  }
+
+  // Pre-select the highest unlocked stage that hasn't been released (or default to Stage 1)
+  // We'll let the officer explicitly select it as requested.
+  const [selectedStage, setSelectedStage] = useState(payment.stage || 'Stage 1');
+
   const handleRelease = async () => {
     setReleasing(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 1200));
-    setReleased(true);
-    setReleasing(false);
-    onRelease(payment.id);
+    try {
+      await applicationService.processFinanceAction(payment.realId, 'RELEASE', 'Payment successful');
+      setReleased(true);
+      // Pass the selected stage so we can log it if needed
+      onRelease(payment.id, payment.realId, selectedStage);
+    } catch (e) {
+      console.error(e);
+      setReleased(false);
+    } finally {
+      setReleasing(false);
+    }
   };
 
   return (
@@ -71,7 +118,7 @@ const PaymentModal = ({ payment, onClose, onRelease }) => {
         </div>
 
         {/* Body */}
-        <div style={{ padding: '2rem' }}>
+        <div style={{ padding: '2rem', maxHeight: '70vh', overflowY: 'auto' }}>
           {/* Divider line */}
           <div style={{ borderBottom: '1px dashed #e2e8f0', marginBottom: '1.5rem' }} />
 
@@ -80,8 +127,6 @@ const PaymentModal = ({ payment, onClose, onRelease }) => {
               ['Beneficiary', payment.beneficiary],
               ['Application ID', payment.id],
               ['Scheme', payment.scheme],
-              ['Stage', payment.stage],
-              ['Amount to Release', `₹${payment.amount.toLocaleString()}`],
               ['Bank Account', payment.bank],
               ['Account Name', payment.accountName],
               ['IFSC Code', payment.ifsc],
@@ -91,6 +136,40 @@ const PaymentModal = ({ payment, onClose, onRelease }) => {
                 <span style={{ fontWeight: 700, color: label === 'Amount to Release' ? '#0284c7' : '#0f172a', fontSize: label === 'Amount to Release' ? '1.1rem' : '0.92rem' }}>{value}</span>
               </div>
             ))}
+          </div>
+
+          <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#1e293b', fontWeight: 700, marginBottom: '0.75rem' }}>
+              Select Disbursement Stage to Release
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedStage('Stage 1')}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', fontWeight: 600, border: selectedStage === 'Stage 1' ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: selectedStage === 'Stage 1' ? '#eff6ff' : '#fff', color: selectedStage === 'Stage 1' ? '#1d4ed8' : '#334155', cursor: 'pointer' }}
+              >
+                Stage 1<br /><span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>Initial Release</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => stage2Unlocked ? setSelectedStage('Stage 2') : null}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', fontWeight: 600, border: selectedStage === 'Stage 2' ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: selectedStage === 'Stage 2' ? '#eff6ff' : (stage2Unlocked ? '#fff' : '#f1f5f9'), color: selectedStage === 'Stage 2' ? '#1d4ed8' : (stage2Unlocked ? '#334155' : '#94a3b8'), opacity: stage2Unlocked ? 1 : 0.6, cursor: stage2Unlocked ? 'pointer' : 'not-allowed' }}
+              >
+                Stage 2<br /><span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>{stage2Unlocked ? 'Milestone Approved' : 'Locked'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => stage3Unlocked ? setSelectedStage('Stage 3') : null}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', fontWeight: 600, border: selectedStage === 'Stage 3' ? '2px solid #3b82f6' : '1px solid #cbd5e1', background: selectedStage === 'Stage 3' ? '#eff6ff' : (stage3Unlocked ? '#fff' : '#f1f5f9'), color: selectedStage === 'Stage 3' ? '#1d4ed8' : (stage3Unlocked ? '#334155' : '#94a3b8'), opacity: stage3Unlocked ? 1 : 0.6, cursor: stage3Unlocked ? 'pointer' : 'not-allowed' }}
+              >
+                Stage 3<br /><span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>{stage3Unlocked ? 'Milestone Approved' : 'Locked'}</span>
+              </button>
+            </div>
+
+            <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount to Release</span>
+              <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '1.3rem' }}>₹{payment.amount.toLocaleString()}</span>
+            </div>
           </div>
 
           {/* Status row */}
@@ -127,7 +206,7 @@ const PaymentModal = ({ payment, onClose, onRelease }) => {
               {releasing ? (
                 <><span style={{ width: 18, height: 18, border: '3px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} /> Processing...</>
               ) : (
-                <><FaMoneyCheckAlt /> Release Payment</>
+                <><FaMoneyCheckAlt /> Release {selectedStage} Payment</>
               )}
             </button>
           )}
@@ -143,6 +222,75 @@ const FinanceOfficerDashboard = () => {
   const [viewPayment, setViewPayment] = useState(null);
   const [releasedIds, setReleasedIds] = useState([]);
 
+  const [activePending, setActivePending] = useState([]);
+  const [allReleased, setAllReleased] = useState([]);
+  const [filteredHistory, setFilteredHistory] = useState([]);
+  const [schemes, setSchemes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const localMilestoneQueue = readStoredMilestonePayments();
+      const res = await applicationService.getFinanceQueue();
+      const pending = [];
+      const released = [];
+      const history = [];
+
+      localMilestoneQueue.forEach((item) => {
+        history.push(item);
+        if (item.paymentStatus === 'Released') {
+          released.push(item);
+        } else {
+          pending.push(item);
+        }
+      });
+
+      if (Array.isArray(res)) {
+        res.forEach(app => {
+          let benefName = app.beneficiary?.user?.fullName || app.beneficiary?.fullName || app.beneficiary?.email || app.beneficiaryName || '';
+          if (!benefName || benefName === 'Citizen') benefName = app.beneficiary?.user?.email || app.beneficiary?.email || 'Beneficiary';
+          if (benefName.includes('@')) benefName = benefName.split('@')[0];
+
+          const mapped = {
+            realId: app.id,
+            id: `APP${String(app.id).padStart(3, '0')}`,
+            beneficiary: benefName,
+            scheme: app.scheme?.name || 'Unknown Scheme',
+            stage: 'Stage 1',
+            amount: app.scheme?.budget || 10000,
+            milestoneStatus: 'Completed',
+            districtApproval: 'Approved',
+            paymentStatus: app.status === 'PAYMENT_SUCCESSFUL' ? 'Released' : 'Pending',
+            bank: app.beneficiary?.bankAccountNumber ? `Acc: ${app.beneficiary.bankAccountNumber}` : 'Bank details unavailable',
+            accountName: benefName,
+            ifsc: app.beneficiary?.ifscCode || 'IFSC unavailable',
+            releaseDate: app.status === 'PAYMENT_SUCCESSFUL' ? new Date().toLocaleDateString('en-IN') : '—'
+          };
+          history.push(mapped);
+          if (app.status === 'PAYMENT_SUCCESSFUL') {
+            released.push(mapped);
+          } else if (['PAYMENT_ELIGIBLE', 'APPROVED_FOR_PAYMENT', 'PAYMENT_PENDING'].includes(app.status)) {
+            pending.push(mapped);
+          }
+        });
+      }
+
+      setActivePending(pending);
+      setAllReleased(released);
+      setFilteredHistory(history);
+      setSchemes([...new Set(history.map(s => s.scheme))]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
   // History filters
   const [filterDate, setFilterDate] = useState('');
   const [filterScheme, setFilterScheme] = useState('');
@@ -150,24 +298,65 @@ const FinanceOfficerDashboard = () => {
   const [filterStage, setFilterStage] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-  const handleRelease = (id) => {
+  const handleRelease = async (id, realId, stage) => {
+    // Immediately move the payment from pending to released in state
+    const released = activePending.find(p => p.id === id);
+    if (released) {
+      const releasedEntry = {
+        ...released,
+        paymentStatus: 'Released',
+        stage: stage || released.stage,
+        releaseDate: new Date().toLocaleDateString('en-IN'),
+      };
+      setActivePending(prev => prev.filter(p => p.id !== id));
+      setAllReleased(prev => [releasedEntry, ...prev]);
+      setFilteredHistory(prev => {
+        const updated = prev.map(p => p.id === id ? releasedEntry : p);
+        // Add if not already in history
+        if (!updated.find(p => p.id === id)) updated.unshift(releasedEntry);
+        return updated;
+      });
+    }
+    // Attempt to update local storage milestones as well
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('utilizationReports_')) {
+          const reports = JSON.parse(localStorage.getItem(key) || '[]');
+          let modified = false;
+          reports.forEach(r => {
+            if (r.id === realId && (r.status === 'DISTRICT_VERIFIED' || r.status === 'VERIFIED')) {
+              r.status = 'PAYMENT_SUCCESSFUL';
+              modified = true;
+            }
+          });
+          if (modified) {
+            localStorage.setItem(key, JSON.stringify(reports));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not update local milestone", e);
+    }
+
     setReleasedIds(prev => [...prev, id]);
-    setTimeout(() => setViewPayment(null), 1500);
+    setTimeout(() => {
+      setViewPayment(null);
+      loadData(); // Fresh fetch after delay to sync with backend
+    }, 1800);
   };
 
-  const activePending = pendingPayments.filter(p => !releasedIds.includes(p.id));
-  const allReleased = [...releasedPayments, ...pendingPayments.filter(p => releasedIds.includes(p.id))];
-
-  const filteredHistory = paymentHistory.filter(p => {
-    const matchDate = !filterDate || p.releaseDate.toLowerCase().includes(filterDate.toLowerCase());
-    const matchScheme = !filterScheme || p.scheme.toLowerCase().includes(filterScheme.toLowerCase());
-    const matchBeneficiary = !filterBeneficiary || p.beneficiary.toLowerCase().includes(filterBeneficiary.toLowerCase());
-    const matchStage = !filterStage || p.stage.toLowerCase().includes(filterStage.toLowerCase());
-    const matchStatus = !filterStatus || p.paymentStatus === filterStatus;
-    return matchDate && matchScheme && matchBeneficiary && matchStage && matchStatus;
-  });
-
-  const schemes = [...new Set(paymentHistory.map(p => p.scheme))];
+  const applyFilters = () => {
+    return filteredHistory.filter(p => {
+      const matchDate = !filterDate || p.releaseDate.toLowerCase().includes(filterDate.toLowerCase());
+      const matchScheme = !filterScheme || p.scheme.toLowerCase().includes(filterScheme.toLowerCase());
+      const matchBeneficiary = !filterBeneficiary || p.beneficiary.toLowerCase().includes(filterBeneficiary.toLowerCase());
+      const matchStage = !filterStage || p.stage.toLowerCase().includes(filterStage.toLowerCase());
+      const matchStatus = !filterStatus || p.paymentStatus === filterStatus;
+      return matchDate && matchScheme && matchBeneficiary && matchStage && matchStatus;
+    });
+  };
+  const filteredOutput = applyFilters();
 
   return (
     <div className="animate-fade-in" style={{ padding: '0 0 2rem 0', background: '#f8fafc', minHeight: '80vh' }}>
@@ -206,7 +395,7 @@ const FinanceOfficerDashboard = () => {
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', color: '#1d4ed8' }}><FaRupeeSign /></div>
             <div className="stat-info">
-              <h4>₹{(totalDisbursed + releasedIds.reduce((s, id) => { const p = pendingPayments.find(x => x.id === id); return s + (p?.amount || 0); }, 0)).toLocaleString()}</h4>
+              <h4>₹{(activePending.reduce((s, p) => s + p.amount, 0) + allReleased.reduce((s, p) => s + p.amount, 0)).toLocaleString()}</h4>
               <p>Total Disbursed</p>
             </div>
           </div>
@@ -325,47 +514,11 @@ const FinanceOfficerDashboard = () => {
                   </div>
                   <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 8, padding: '0.4rem 1rem', fontSize: '0.83rem', fontWeight: 700 }}>
                     <FaChartBar style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                    {filteredHistory.length} record{filteredHistory.length !== 1 ? 's' : ''}
+                    {filteredOutput.length} record{filteredOutput.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
-                {/* Filters */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                  <div style={{ position: 'relative' }}>
-                    <FaSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.8rem' }} />
-                    <input className="form-control" placeholder="Beneficiary..." value={filterBeneficiary} onChange={e => setFilterBeneficiary(e.target.value)} style={{ paddingLeft: 30, height: 38, fontSize: '0.87rem' }} />
-                  </div>
-                  <div>
-                    <select className="form-control" value={filterScheme} onChange={e => setFilterScheme(e.target.value)} style={{ height: 38, fontSize: '0.87rem' }}>
-                      <option value="">All Schemes</option>
-                      {schemes.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <select className="form-control" value={filterStage} onChange={e => setFilterStage(e.target.value)} style={{ height: 38, fontSize: '0.87rem' }}>
-                      <option value="">All Stages</option>
-                      <option value="Stage 1">Stage 1</option>
-                      <option value="Stage 2">Stage 2</option>
-                      <option value="Stage 3">Stage 3</option>
-                    </select>
-                  </div>
-                  <div>
-                    <select className="form-control" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ height: 38, fontSize: '0.87rem' }}>
-                      <option value="">All Statuses</option>
-                      <option value="Released">Released</option>
-                      <option value="Pending">Pending</option>
-                    </select>
-                  </div>
-                  <div style={{ position: 'relative' }}>
-                    <FaSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.8rem' }} />
-                    <input className="form-control" placeholder="Date..." value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ paddingLeft: 30, height: 38, fontSize: '0.87rem' }} />
-                  </div>
-                  {(filterDate || filterScheme || filterBeneficiary || filterStage || filterStatus) && (
-                    <button onClick={() => { setFilterDate(''); setFilterScheme(''); setFilterBeneficiary(''); setFilterStage(''); setFilterStatus(''); }} style={{ height: 38, border: '1px solid #fca5a5', background: '#fff', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: '0.83rem', fontWeight: 600 }}>
-                      Clear Filters
-                    </button>
-                  )}
-                </div>
+
 
                 <div className="custom-table-container">
                   <table className="custom-table">
@@ -381,9 +534,9 @@ const FinanceOfficerDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredHistory.length === 0 ? (
+                      {filteredOutput.length === 0 ? (
                         <tr><td colSpan={7} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontStyle: 'italic' }}>No records match the selected filters.</td></tr>
-                      ) : filteredHistory.map((p, i) => (
+                      ) : filteredOutput.map((p, i) => (
                         <tr key={p.id + i}>
                           <td><strong>{p.id}</strong></td>
                           <td>{p.beneficiary}</td>

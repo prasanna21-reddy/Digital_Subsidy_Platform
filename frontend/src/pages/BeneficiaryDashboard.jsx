@@ -3,6 +3,33 @@ import { Link } from 'react-router-dom';
 import { FaPlusCircle, FaSearch, FaFileInvoiceDollar, FaCheckCircle, FaExclamationTriangle, FaClock } from 'react-icons/fa';
 import { applicationService } from '../services/applicationService';
 
+const getMilestoneReports = () => {
+  const email = localStorage.getItem('userEmail') || localStorage.getItem('userName') || 'guest';
+  const key = `utilizationReports_${email}`;
+
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const reports = JSON.parse(raw);
+    if (!Array.isArray(reports)) return [];
+
+    return reports
+      .filter(report => ['REJECTED', 'FIELD_REJECTED', 'DISTRICT_REJECTED', 'CORRECTION_REQUIRED'].includes(String(report.status || '').toUpperCase()))
+      .map(report => ({
+        id: `milestone-${report.id || Date.now()}`,
+        isMilestone: true,
+        scheme: { name: report.schemeName || 'Milestone Review' },
+        schemeName: report.schemeName || 'Milestone Review',
+        submittedDate: report.submittedAt || new Date().toISOString(),
+        status: String(report.status || '').toUpperCase(),
+        tooltip: report.purpose || 'Milestone review submission',
+      }));
+  } catch (e) {
+    console.warn('Failed to load milestone rejection state', e);
+    return [];
+  }
+};
+
 const BeneficiaryDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,9 +44,11 @@ const BeneficiaryDashboard = () => {
     setIsLoading(true);
     try {
       const data = await applicationService.getApplications();
-      setApplications(data || []);
+      const milestoneReports = getMilestoneReports();
+      setApplications([...(data || []), ...milestoneReports]);
     } catch (e) {
       console.error(e);
+      setApplications(getMilestoneReports());
     } finally {
       setIsLoading(false);
     }
@@ -28,17 +57,21 @@ const BeneficiaryDashboard = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'SUBMITTED':
+      case 'PENDING_FIELD_VERIFICATION':
         return <span className="badge badge-submitted"><FaClock /> Level 1: Field Review</span>;
       case 'FIELD_VERIFIED':
-        return <span className="badge badge-review"><FaClock /> Level 2: District Review</span>;
+      case 'FORWARDED_TO_DISTRICT':
+        return <span className="badge badge-review"><FaClock /> Level 2: District Officer Review</span>;
       case 'DISTRICT_VERIFIED':
-        return <span className="badge badge-review"><FaClock /> Level 3: Finance Approval</span>;
       case 'APPROVED_FOR_PAYMENT':
+      case 'PAYMENT_PENDING':
+        return <span className="badge badge-review"><FaClock /> Payment Pending</span>;
       case 'PAYMENT_SUCCESSFUL':
         return <span className="badge badge-approved"><FaCheckCircle /> Approved & Disbursed</span>;
       case 'FIELD_REJECTED':
       case 'DISTRICT_REJECTED':
-        return <span className="badge badge-rejected"><FaExclamationTriangle /> Application Rejected</span>;
+      case 'REJECTED':
+        return <span className="badge badge-rejected"><FaExclamationTriangle /> Application / Milestone Rejected</span>;
       default:
         return <span className="badge badge-submitted">{status || 'In Progress'}</span>;
     }
@@ -118,8 +151,8 @@ const BeneficiaryDashboard = () => {
               <tbody>
                 {applications.map((app) => (
                   <tr key={app.id}>
-                    <td><strong>#APP-{app.id}</strong></td>
-                    <td>{app.scheme?.name || 'Government Subsidy Scheme'}</td>
+                    <td><strong>{app.isMilestone ? `#MILESTONE-${String(app.id).replace('milestone-', '')}` : `#APP-${app.id}`}</strong></td>
+                    <td>{app.isMilestone ? (app.schemeName || 'Milestone Review') : (app.scheme?.name || 'Government Subsidy Scheme')}</td>
                     <td>{app.submittedDate ? new Date(app.submittedDate).toLocaleDateString() : 'N/A'}</td>
                     <td>{getStatusBadge(app.status)}</td>
                     <td>

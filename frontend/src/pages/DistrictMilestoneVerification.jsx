@@ -1,18 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaCheckCircle, FaTimes, FaHistory, FaEye, FaLayerGroup } from 'react-icons/fa';
+import { auditService } from '../services/auditService';
 
-/* ─── Mock Data ─── */
-const milestonePending = [
-    { id: 1, beneficiary: 'Anitha Reddy', scheme: 'Farmer Subsidy', milestone: 'Stage 2 – Progress Report', due: '12 Aug 2026', submittedDate: '10 Aug 2026', proof: 'stage2_progress.pdf', requirement: 'Field progress photo and agronomist sign-off for stage 2 disbursement.', remarks: 'Second crop cycle started as per schedule.' },
-    { id: 2, beneficiary: 'Mohan Das', scheme: 'Housing Scheme', milestone: 'Lintel Level Certificate', due: '15 Aug 2026', submittedDate: '10 Aug 2026', proof: 'lintel_cert.pdf', requirement: 'Engineer certificate showing construction up to lintel level.', remarks: 'Lintel work completed 09 Aug. Certificate attached.' },
-];
-
-const milestoneCompleted = [
-    { id: 1, beneficiary: 'Kavitha P.', scheme: 'Education Grant', milestone: 'Semester Result Upload', verifiedOn: '05 Aug 2026', decision: 'Verified', remarks: 'Result sheet and marks verified successfully.' },
-    { id: 2, beneficiary: 'Lingam R.', scheme: 'MSME Assist', milestone: 'GST & Udyam Cert', verifiedOn: '04 Aug 2026', decision: 'Verified', remarks: 'GST registration confirmed with portal cross-check.' },
-];
-
-/* ─── Tab style ─── */
 const tabStyle = (active) => ({
     background: 'none', border: 'none',
     padding: '0.55rem 1.4rem',
@@ -24,12 +13,88 @@ const tabStyle = (active) => ({
     transition: 'all 0.2s',
 });
 
-/* ─── Milestone Review Modal ─── */
-const MilestoneModal = ({ item, onClose }) => {
+const getReportStatusMeta = (status) => {
+    const value = String(status || 'SUBMITTED').toUpperCase();
+    if (value === 'FORWARDED_TO_DISTRICT') return { status: 'FORWARDED_TO_DISTRICT', decision: 'Pending' };
+    if (value === 'VERIFIED' || value === 'DISTRICT_VERIFIED') return { status: 'VERIFIED', decision: 'Verified' };
+    if (value === 'REJECTED' || value === 'DISTRICT_REJECTED') return { status: 'REJECTED', decision: 'Rejected' };
+    if (value === 'CORRECTION_REQUIRED') return { status: 'CORRECTION_REQUIRED', decision: 'Re-verification' };
+    return { status: 'SUBMITTED', decision: 'Pending' };
+};
+
+const readUtilizationReports = () => {
+    const reports = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith('utilizationReports_')) continue;
+        const email = key.replace('utilizationReports_', '');
+        try {
+            const savedReports = JSON.parse(localStorage.getItem(key) || '[]');
+            if (Array.isArray(savedReports)) {
+                savedReports.forEach((report) => {
+                    const state = getReportStatusMeta(report.status);
+                    if (!['FORWARDED_TO_DISTRICT', 'VERIFIED', 'DISTRICT_VERIFIED', 'REJECTED', 'DISTRICT_REJECTED', 'CORRECTION_REQUIRED'].includes(state.status) && !report.forwardedToDistrict) {
+                        return;
+                    }
+                    reports.push({
+                        ...report,
+                        email,
+                        beneficiary: report.beneficiaryName || localStorage.getItem('userName') || email,
+                        scheme: report.schemeName || 'Unknown Scheme',
+                        milestone: `${report.disbursementStage || 'Stage'} - ${report.purpose || 'Utilization'}`,
+                        due: 'N/A',
+                        submittedDate: report.submittedAt ? new Date(report.submittedAt).toLocaleDateString('en-IN') : 'N/A',
+                        proof: report.document?.name || 'No file',
+                        requirement: `Utilized Amount: ₹${report.amountUtilized || 0}\n\nDescription:\n${report.description || 'none'}`,
+                        remarks: report.officerRemarks || `Utilization Date: ${report.utilizationDate || 'N/A'}`,
+                        status: state.status,
+                        decision: state.decision,
+                        verifiedOn: report.verifiedOn || 'N/A',
+                        rawId: report.id,
+                        rawEmail: email,
+                        id: `ur_${report.id}`,
+                    });
+                });
+            }
+        } catch (e) {
+            console.warn('Could not read district milestone reports', e);
+        }
+    }
+    return reports;
+};
+
+const updateUtilizationStatus = (reportId, email, nextStatus, decision, remarks) => {
+    const key = `utilizationReports_${email}`;
+    const savedReports = JSON.parse(localStorage.getItem(key) || '[]');
+    const updated = savedReports.map((report) => {
+        if (report.id !== reportId) return report;
+        return {
+            ...report,
+            status: nextStatus,
+            decision,
+            officerRemarks: remarks,
+            verifiedOn: new Date().toLocaleDateString('en-IN'),
+            forwardedToDistrict: false,
+            financeEligible: nextStatus === 'DISTRICT_VERIFIED' || nextStatus === 'VERIFIED',
+        };
+    });
+    localStorage.setItem(key, JSON.stringify(updated));
+};
+
+const MilestoneModal = ({ item, onClose, refresh }) => {
     const [remarks, setRemarks] = useState('');
     const handle = (action) => {
         if (!remarks.trim()) { alert('Please add remarks before deciding.'); return; }
+        const nextStatus = action === 'Verified' ? 'DISTRICT_VERIFIED' : action === 'Rejected' ? 'DISTRICT_REJECTED' : 'CORRECTION_REQUIRED';
+        const decision = action === 'Verified' ? 'Approved by District Officer' : action === 'Rejected' ? 'Rejected by District Officer' : 'Corrections requested';
+        updateUtilizationStatus(item.rawId, item.rawEmail, nextStatus, decision, remarks);
+        auditService.logAction(
+            `Utilization Report "${item.milestone}" (Beneficiary: ${item.beneficiary}) → ${action}: ${remarks.substring(0, 80)}`,
+            'District Milestone Verification',
+            'Success'
+        );
         alert(`Milestone "${item.milestone}" → ${action}\nRemarks: ${remarks}`);
+        refresh();
         onClose();
     };
     return (
@@ -50,7 +115,7 @@ const MilestoneModal = ({ item, onClose }) => {
                         </div>
                         <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                             <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Uploaded Proof</strong>
-                            <a href="#" style={{ fontSize: '0.87rem', color: '#0284c7', textDecoration: 'underline' }}>{item.proof}</a>
+                            <span style={{ fontSize: '0.87rem', color: '#0284c7', textDecoration: 'underline' }}>{item.proof}</span>
                         </div>
                         <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                             <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Dates</strong>
@@ -87,15 +152,44 @@ const MilestoneModal = ({ item, onClose }) => {
     );
 };
 
-/* ─── Page ─── */
 const DistrictMilestoneVerification = () => {
     const [tab, setTab] = useState('PENDING');
     const [reviewItem, setReviewItem] = useState(null);
+    const [milestonePending, setMilestonePending] = useState([]);
+    const [milestoneCompleted, setMilestoneCompleted] = useState([]);
+
+    useEffect(() => {
+        const pending = [];
+        const completed = [];
+
+        readUtilizationReports().forEach((report) => {
+            const mapped = {
+                ...report,
+                beneficiary: report.beneficiary || 'Beneficiary',
+                scheme: report.scheme || 'Unknown Scheme',
+                milestone: report.milestone || 'Utilization Report',
+                due: report.due || 'N/A',
+                submittedDate: report.submittedDate || 'N/A',
+                proof: report.proof || 'No file',
+                remarks: report.remarks || 'No remarks',
+                status: report.status,
+                decision: report.decision,
+                verifiedOn: report.verifiedOn || 'N/A',
+            };
+
+            if (report.status === 'FORWARDED_TO_DISTRICT') {
+                pending.push(mapped);
+            } else {
+                completed.push(mapped);
+            }
+        });
+
+        setMilestonePending(pending);
+        setMilestoneCompleted(completed);
+    }, []);
 
     return (
         <div className="animate-fade-in" style={{ padding: '0 0 2rem 0', background: '#f8fafc', minHeight: '80vh' }}>
-
-            {/* Header */}
             <div style={{ background: '#fff', padding: '1.75rem 2rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     <div style={{ width: 42, height: 42, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.1rem' }}>
@@ -109,8 +203,6 @@ const DistrictMilestoneVerification = () => {
             </div>
 
             <div style={{ padding: '0 2rem' }}>
-
-                {/* Summary chips */}
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
                     <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, padding: '0.6rem 1.2rem', display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#d97706' }}>{milestonePending.length}</span>
@@ -122,7 +214,6 @@ const DistrictMilestoneVerification = () => {
                     </div>
                 </div>
 
-                {/* Tabs */}
                 <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid #e2e8f0', marginBottom: '1.75rem' }}>
                     {[
                         ['PENDING', `Pending Reviews (${milestonePending.length})`],
@@ -132,7 +223,6 @@ const DistrictMilestoneVerification = () => {
                     ))}
                 </div>
 
-                {/* ── Pending ── */}
                 {tab === 'PENDING' && (
                     <div className="animate-fade-in" style={{ background: '#fff', borderRadius: 12, padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
                         <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Pending Milestone Reviews</h3>
@@ -151,7 +241,9 @@ const DistrictMilestoneVerification = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {milestonePending.map(m => (
+                                    {milestonePending.length === 0 ? (
+                                        <tr><td colSpan="7" style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No pending reviews.</td></tr>
+                                    ) : milestonePending.map(m => (
                                         <tr key={m.id}>
                                             <td><strong>{m.beneficiary}</strong></td>
                                             <td>{m.scheme}</td>
@@ -172,7 +264,6 @@ const DistrictMilestoneVerification = () => {
                     </div>
                 )}
 
-                {/* ── Completed ── */}
                 {tab === 'COMPLETED' && (
                     <div className="animate-fade-in" style={{ background: '#fff', borderRadius: 12, padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
                         <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Completed Milestone Verifications</h3>
@@ -190,7 +281,9 @@ const DistrictMilestoneVerification = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {milestoneCompleted.map(m => (
+                                    {milestoneCompleted.length === 0 ? (
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No completed verifications.</td></tr>
+                                    ) : milestoneCompleted.map(m => (
                                         <tr key={m.id}>
                                             <td><strong>{m.beneficiary}</strong></td>
                                             <td>{m.scheme}</td>
@@ -205,10 +298,31 @@ const DistrictMilestoneVerification = () => {
                         </div>
                     </div>
                 )}
-
             </div>
 
-            {reviewItem && <MilestoneModal item={reviewItem} onClose={() => setReviewItem(null)} />}
+            {reviewItem && <MilestoneModal item={reviewItem} onClose={() => setReviewItem(null)} refresh={() => {
+                const pending = [];
+                const completed = [];
+                readUtilizationReports().forEach((report) => {
+                    const mapped = {
+                        ...report,
+                        beneficiary: report.beneficiary || 'Beneficiary',
+                        scheme: report.scheme || 'Unknown Scheme',
+                        milestone: report.milestone || 'Utilization Report',
+                        due: report.due || 'N/A',
+                        submittedDate: report.submittedDate || 'N/A',
+                        proof: report.proof || 'No file',
+                        remarks: report.remarks || 'No remarks',
+                        status: report.status,
+                        decision: report.decision,
+                        verifiedOn: report.verifiedOn || 'N/A',
+                    };
+                    if (report.status === 'FORWARDED_TO_DISTRICT') pending.push(mapped);
+                    else completed.push(mapped);
+                });
+                setMilestonePending(pending);
+                setMilestoneCompleted(completed);
+            }} />}
         </div>
     );
 };

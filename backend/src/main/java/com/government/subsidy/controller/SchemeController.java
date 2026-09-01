@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/api/v1/schemes", "/api/schemes"})
+@RequestMapping({ "/api/v1/schemes", "/api/schemes" })
 public class SchemeController {
 
     @Autowired
@@ -19,9 +19,15 @@ public class SchemeController {
     public List<Scheme> getAllSchemes() {
         List<Scheme> schemes = schemeService.getAllSchemes();
         if (schemes.isEmpty()) {
-            schemeService.createScheme(new Scheme(null, "Pradhan Mantri Awas Yojana", "Housing subsidy scheme for low & middle income families", "Income below ₹3,00,000 / General, SC, ST", 250000.0, true));
-            schemeService.createScheme(new Scheme(null, "PM-KISAN Samman Nidhi", "Direct income support of ₹6,000 per year for small farmers", "Small & Marginal Farmers", 6000.0, true));
-            schemeService.createScheme(new Scheme(null, "National Higher Education Scholarship", "Financial aid for undergraduate & postgraduate students", "Students with family income < ₹2,50,000", 50000.0, true));
+            schemeService.createScheme(new Scheme(null, "Pradhan Mantri Awas Yojana",
+                    "Housing subsidy scheme for low & middle income families",
+                    "Income below ₹3,00,000 / General, SC, ST", 250000.0, true));
+            schemeService.createScheme(new Scheme(null, "PM-KISAN Samman Nidhi",
+                    "Direct income support of ₹6,000 per year for small farmers", "Small & Marginal Farmers", 6000.0,
+                    true));
+            schemeService.createScheme(new Scheme(null, "National Higher Education Scholarship",
+                    "Financial aid for undergraduate & postgraduate students",
+                    "Students with family income < ₹2,50,000", 50000.0, true));
             schemes = schemeService.getAllSchemes();
         }
         return schemes;

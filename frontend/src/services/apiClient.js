@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8081';
 
 // Auth endpoints don't need (or want) an existing token in the header
 const AUTH_ENDPOINTS = ['/auth/login', '/auth/signup', '/auth/register', '/auth/reset-password'];
@@ -23,11 +23,14 @@ export const apiClient = {
         const url = endpoint.startsWith('/api') ? `${BASE_URL}${endpoint}` : `${BASE_URL}/api/v1${endpoint}`;
         const response = await fetch(url, config);
 
-        // Auto-clear stale tokens if server says Unauthorized / Forbidden
-        if (response.status === 401 || response.status === 403) {
+        // Only clear the JWT token on true 401 Unauthorized.
+        // Do NOT clear userRole or isAuthenticated here — wiping them causes
+        // the route guard to default to CITIZEN role and bounce the user to /dashboard
+        // on every failed API data call (e.g. backend temporarily unavailable).
+        // Session flags are only cleared on explicit logout (authService.logout).
+        if (response.status === 401) {
             localStorage.removeItem('jwtToken');
-            localStorage.removeItem('isAuthenticated');
-            localStorage.removeItem('userRole');
+            // Don't redirect here — DashboardLayout route guard handles navigation
         }
 
         if (!response.ok) {

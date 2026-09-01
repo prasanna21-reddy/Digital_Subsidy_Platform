@@ -30,7 +30,9 @@ public class ApplicationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Application> getApplicationById(@PathVariable Long id) {
-        return ResponseEntity.ok(applicationService.getApplicationById(id));
+        Application application = applicationService.getApplicationById(id);
+        application.setEligibilityScore(null);
+        return ResponseEntity.ok(application);
     }
 
     @GetMapping("/my-applications")
@@ -39,7 +41,9 @@ public class ApplicationController {
         String userEmail = (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser"))
                 ? auth.getName()
                 : "citizen@gov.in";
-        return ResponseEntity.ok(applicationService.getApplicationsForCitizen(userEmail));
+        List<Application> applications = applicationService.getApplicationsForCitizen(userEmail);
+        applications.forEach(app -> app.setEligibilityScore(null));
+        return ResponseEntity.ok(applications);
     }
 
     // Alias used by frontend service
@@ -54,7 +58,14 @@ public class ApplicationController {
         Map<String, Object> statusMap = new HashMap<>();
         statusMap.put("id", app.getId());
         statusMap.put("status", app.getStatus());
-        statusMap.put("eligibilityScore", app.getEligibilityScore());
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isOfficer = auth != null && auth.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_FIELD_OFFICER")
+                        || authority.getAuthority().equals("ROLE_DISTRICT_OFFICER")
+                        || authority.getAuthority().equals("ROLE_FINANCE_OFFICER"));
+
+        statusMap.put("eligibilityScore", isOfficer ? app.getEligibilityScore() : null);
         statusMap.put("submittedDate", app.getSubmittedDate());
         statusMap.put("remarks", app.getRemarks());
         return ResponseEntity.ok(statusMap);

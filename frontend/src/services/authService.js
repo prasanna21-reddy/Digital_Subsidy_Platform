@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { auditService } from './auditService';
 
 export const authService = {
     login: async (email, password) => {
@@ -17,6 +18,7 @@ export const authService = {
                 localStorage.setItem('userId', data.id || '');
                 localStorage.setItem('isAuthenticated', 'true');
 
+                auditService.logAction(`User logged in: ${data.email || email} (Role: ${data.role})`, 'Authentication', 'Success');
                 return { success: true, role: data.role, token: data.token, fullName: data.fullName };
             }
 
@@ -56,10 +58,14 @@ export const authService = {
     },
 
     logout: () => {
+        const email = localStorage.getItem('userEmail') || 'unknown';
+        const role = localStorage.getItem('userRole') || 'User';
+        auditService.logAction(`User logged out: ${email}`, 'Authentication', 'Success');
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userEmail');
         localStorage.removeItem('userName');
         localStorage.removeItem('userRole');
+        localStorage.removeItem('userId');
         localStorage.removeItem('beneficiaryType');
         localStorage.removeItem('beneficiaryDetails');
         localStorage.removeItem('isAuthenticated');

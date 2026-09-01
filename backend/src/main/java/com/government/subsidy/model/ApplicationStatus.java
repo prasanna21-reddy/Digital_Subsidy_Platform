@@ -2,12 +2,15 @@ package com.government.subsidy.model;
 
 public enum ApplicationStatus {
     DRAFT,
+    PENDING_FIELD_VERIFICATION, // replaces SUBMITTED or equivalent
     SUBMITTED,
     FIELD_VERIFIED,
+    FORWARDED_TO_DISTRICT,
     FIELD_REJECTED,
     CORRECTION_REQUIRED,
     DISTRICT_VERIFIED,
     DISTRICT_REJECTED,
+    PAYMENT_ELIGIBLE,
     APPROVED_FOR_PAYMENT,
     PAYMENT_PENDING,
     PAYMENT_SUCCESSFUL,

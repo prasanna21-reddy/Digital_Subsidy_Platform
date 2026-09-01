@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { FaCheckCircle, FaTimes, FaHistory, FaEye, FaLayerGroup, FaFileAlt } from 'react-icons/fa';
-import { auditService } from '../services/auditService';
+import React, { useState } from 'react';
+import { FaCheckCircle, FaTimes, FaHistory, FaEye, FaLayerGroup } from 'react-icons/fa';
 
+/* ─── Mock Data ─── */
+const milestonePending = [
+    { id: 1, beneficiary: 'Ramu Yadav', scheme: 'Farmer Scheme', milestone: 'Stage 1 – Crop Proof', due: '10 Aug 2026', submittedDate: '08 Aug 2026', proof: 'farmer_stage1_proof.jpg', requirement: 'Photograph of field with crops planted. Area: 1.5 hectares.', remarks: 'Crop planting completed on 07 Aug.' },
+    { id: 2, beneficiary: 'Suresh Kumar', scheme: 'Housing Scheme', milestone: 'Foundation Certificate', due: '12 Aug 2026', submittedDate: '09 Aug 2026', proof: 'housing_foundation.pdf', requirement: 'Structural engineer sign-off on foundation layer.', remarks: 'Foundation laid on 05 Aug, engineer inspected.' },
+];
+
+const milestoneCompleted = [
+    { id: 1, beneficiary: 'Kavitha Devi', scheme: 'Education Grant', milestone: 'Enrollment Proof', verifiedOn: '05 Aug 2026', decision: 'Verified', remarks: 'University ID and admission letter verified.' },
+    { id: 2, beneficiary: 'Lingam Rao', scheme: 'MSME Assist', milestone: 'GST Registration', verifiedOn: '06 Aug 2026', decision: 'Verified', remarks: 'GST certificate confirmed and cross-checked.' },
+];
+
+/* ─── Tab style ─── */
 const tabStyle = (active) => ({
     background: 'none', border: 'none',
     padding: '0.55rem 1.4rem',
@@ -13,84 +24,15 @@ const tabStyle = (active) => ({
     transition: 'all 0.2s',
 });
 
-const getReportStatusMeta = (status) => {
-    const value = String(status || 'SUBMITTED').toUpperCase();
-    if (value === 'FORWARDED_TO_DISTRICT') return { status: 'FORWARDED_TO_DISTRICT', decision: 'Forwarded to District Officer' };
-    if (value === 'VERIFIED' || value === 'DISTRICT_VERIFIED') return { status: 'VERIFIED', decision: 'Verified' };
-    if (value === 'REJECTED' || value === 'DISTRICT_REJECTED') return { status: 'REJECTED', decision: 'Rejected' };
-    if (value === 'CORRECTION_REQUIRED') return { status: 'CORRECTION_REQUIRED', decision: 'Re-verification' };
-    return { status: 'SUBMITTED', decision: 'Pending' };
-};
-
-const readUtilizationReports = () => {
-    const reports = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key || !key.startsWith('utilizationReports_')) continue;
-        const email = key.replace('utilizationReports_', '');
-        try {
-            const savedReports = JSON.parse(localStorage.getItem(key) || '[]');
-            if (Array.isArray(savedReports)) {
-                savedReports.forEach((report) => {
-                    reports.push({
-                        ...report,
-                        email,
-                        beneficiary: report.beneficiaryName || localStorage.getItem('userName') || email,
-                        scheme: report.schemeName || 'Unknown Scheme',
-                        milestone: `${report.disbursementStage || 'Stage'} - ${report.purpose || 'Utilization'}`,
-                        due: 'N/A',
-                        submittedDate: report.submittedAt ? new Date(report.submittedAt).toLocaleDateString('en-IN') : 'N/A',
-                        proof: report.document?.name || 'No file',
-                        documentContent: report.document,
-                        requirement: `Utilized Amount: ₹${report.amountUtilized || 0}\n\nDescription:\n${report.description || 'none'}`,
-                        remarks: report.officerRemarks || `Utilization Date: ${report.utilizationDate || 'N/A'}`,
-                        verifiedOn: report.verifiedOn || 'N/A',
-                        rawId: report.id,
-                        rawEmail: email,
-                        id: `ur_${report.id}`,
-                    });
-                });
-            }
-        } catch (e) {
-            console.warn('Could not read stored milestone reports', e);
-        }
-    }
-    return reports;
-};
-
-const MilestoneModal = ({ item, onClose, onUpdate }) => {
+/* ─── Milestone Review Modal ─── */
+const MilestoneModal = ({ item, onClose }) => {
     const [remarks, setRemarks] = useState('');
-
     const handle = (action) => {
         if ((action === 'Reject' || action === 'Re-verification') && !remarks.trim()) {
             alert('Please add remarks before ' + action);
             return;
         }
-
-        const nextStatus = action === 'Verify' ? 'FORWARDED_TO_DISTRICT' : action === 'Reject' ? 'REJECTED' : 'SUBMITTED';
-        const nextDecision = action === 'Verify' ? 'Forwarded to District Officer' : action === 'Reject' ? 'Rejected' : 'Pending';
-
-        if (item.rawEmail && item.rawId) {
-            const key = 'utilizationReports_' + item.rawEmail;
-            try {
-                const reports = JSON.parse(localStorage.getItem(key) || '[]');
-                const updated = reports.map((r) => r.id === item.rawId
-                    ? { ...r, status: nextStatus, officerRemarks: remarks, verifiedOn: new Date().toLocaleDateString('en-IN'), decision: nextDecision, forwardedToDistrict: action === 'Verify' }
-                    : r
-                );
-                localStorage.setItem(key, JSON.stringify(updated));
-            } catch (e) {
-                console.warn('Could not save updated milestone report', e);
-            }
-            onUpdate();
-        }
-
-        auditService.logAction(
-            `Utilization Report "${item.milestone}" (Beneficiary: ${item.beneficiary}) → ${action}${remarks ? ': ' + remarks.substring(0, 60) : ''}`,
-            'Milestone Verification',
-            'Success'
-        );
-        alert(`Milestone / Utilization Report "${item.milestone}" → ${action}\nRemarks: ${remarks || '(none)'}\n\n${action === 'Verify' ? 'Verified and forwarded to District Officer queue.' : ''}`);
+        alert(`Milestone "${item.milestone}" → ${action}\nRemarks: ${remarks || '(none)'}`);
         onClose();
     };
 
@@ -99,7 +41,7 @@ const MilestoneModal = ({ item, onClose, onUpdate }) => {
             <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.16)' }}>
                 <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
                     <div>
-                        <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: '#0f172a' }}>Review — {item.milestone}</h3>
+                        <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: '#0f172a' }}>Milestone Review — {item.milestone}</h3>
                         <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.85rem' }}>{item.beneficiary} · {item.scheme}</p>
                     </div>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '1.25rem' }}><FaTimes /></button>
@@ -108,18 +50,12 @@ const MilestoneModal = ({ item, onClose, onUpdate }) => {
                 <div style={{ padding: '2rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Requirement / Utilized Amount</strong>
-                            <p style={{ margin: 0, fontSize: '0.87rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{item.requirement}</p>
+                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Milestone Requirement</strong>
+                            <p style={{ margin: 0, fontSize: '0.87rem', color: '#475569' }}>{item.requirement}</p>
                         </div>
                         <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                             <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Uploaded Proof</strong>
-                            {item.documentContent?.dataUrl ? (
-                                <a href={item.documentContent.dataUrl} download={item.documentContent.name || 'proof'} style={{ fontSize: '0.87rem', color: '#0284c7', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <FaFileAlt /> {item.proof}
-                                </a>
-                            ) : (
-                                <span style={{ fontSize: '0.87rem', color: '#64748b' }}>{item.proof}</span>
-                            )}
+                            <a href="#" style={{ fontSize: '0.87rem', color: '#0284c7', textDecoration: 'underline' }}>{item.proof}</a>
                         </div>
                         <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                             <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.4rem' }}>Dates</strong>
@@ -139,7 +75,7 @@ const MilestoneModal = ({ item, onClose, onUpdate }) => {
                         </div>
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <button onClick={() => handle('Verify')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#22c55e,#16a34a)', borderColor: '#22c55e' }}>
-                                <FaCheckCircle /> Verify & Forward
+                                <FaCheckCircle /> Verify
                             </button>
                             <button onClick={() => handle('Re-verification')} className="btn-outline" style={{ flex: 1, justifyContent: 'center', color: '#d97706', borderColor: '#fcd34d' }}>
                                 <FaHistory /> Request Re-verification
@@ -155,62 +91,30 @@ const MilestoneModal = ({ item, onClose, onUpdate }) => {
     );
 };
 
+/* ─── Page ─── */
 const FieldMilestoneVerification = () => {
     const [tab, setTab] = useState('PENDING');
     const [reviewItem, setReviewItem] = useState(null);
-    const [milestonePending, setMilestonePending] = useState([]);
-    const [milestoneCompleted, setMilestoneCompleted] = useState([]);
-
-    const loadData = () => {
-        const pending = [];
-        const completed = [];
-
-        readUtilizationReports().forEach((report) => {
-            const state = getReportStatusMeta(report.status);
-            const mapped = {
-                ...report,
-                beneficiary: report.beneficiary || 'Beneficiary',
-                scheme: report.scheme || 'Unknown Scheme',
-                milestone: report.milestone || 'Utilization Report',
-                due: report.due || 'N/A',
-                submittedDate: report.submittedDate || 'N/A',
-                proof: report.proof || 'No file',
-                remarks: report.officerRemarks || report.remarks || 'No remarks',
-                status: state.status,
-                decision: state.decision,
-                verifiedOn: report.verifiedOn || 'N/A',
-            };
-
-            if (['SUBMITTED', 'PENDING', 'CORRECTION_REQUIRED'].includes(state.status)) {
-                pending.push(mapped);
-            } else {
-                completed.push(mapped);
-            }
-        });
-
-        setMilestonePending(pending);
-        setMilestoneCompleted(completed);
-    };
-
-    useEffect(() => {
-        loadData();
-    }, []);
 
     return (
         <div className="animate-fade-in" style={{ padding: '0 0 2rem 0', background: '#f8fafc', minHeight: '80vh' }}>
+
+            {/* Header */}
             <div style={{ background: '#fff', padding: '1.75rem 2rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     <div style={{ width: 42, height: 42, background: 'linear-gradient(135deg,#0284c7,#0369a1)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.1rem' }}>
                         <FaLayerGroup />
                     </div>
                     <div>
-                        <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.7rem', color: '#0f172a' }}>Milestone & Utilization Review</h2>
-                        <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>Stage-by-stage milestone proof and utilization report reviews.</p>
+                        <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.7rem', color: '#0f172a' }}>Milestone Verification</h2>
+                        <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>Stage-by-stage milestone proof review from beneficiaries.</p>
                     </div>
                 </div>
             </div>
 
             <div style={{ padding: '0 2rem' }}>
+
+                {/* Summary chips */}
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
                     <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, padding: '0.6rem 1.2rem', display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#d97706' }}>{milestonePending.length}</span>
@@ -222,6 +126,7 @@ const FieldMilestoneVerification = () => {
                     </div>
                 </div>
 
+                {/* Tabs */}
                 <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid #e2e8f0', marginBottom: '1.75rem' }}>
                     {[
                         ['PENDING', `Pending Reviews (${milestonePending.length})`],
@@ -231,17 +136,16 @@ const FieldMilestoneVerification = () => {
                     ))}
                 </div>
 
+                {/* ── Pending ── */}
                 {tab === 'PENDING' && (
                     <div className="animate-fade-in" style={{ background: '#fff', borderRadius: 12, padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
-                        <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Pending Milestone & Utilization Reviews</h3>
+                        <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Pending Milestone Reviews</h3>
                         <p style={{ margin: '0 0 1.25rem', fontSize: '0.87rem', color: '#64748b' }}>Beneficiaries who have uploaded proof and are waiting for your review.</p>
                         <div className="custom-table-container">
                             <table className="custom-table">
-                                <thead><tr><th>Beneficiary</th><th>Scheme</th><th>Milestone / Report</th><th>Submitted</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Beneficiary</th><th>Scheme</th><th>Milestone</th><th>Submitted</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
                                 <tbody>
-                                    {milestonePending.length === 0 ? (
-                                        <tr><td colSpan="7" style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No pending reviews.</td></tr>
-                                    ) : milestonePending.map(m => (
+                                    {milestonePending.map(m => (
                                         <tr key={m.id}>
                                             <td><strong>{m.beneficiary}</strong></td>
                                             <td>{m.scheme}</td>
@@ -262,31 +166,22 @@ const FieldMilestoneVerification = () => {
                     </div>
                 )}
 
+                {/* ── Completed ── */}
                 {tab === 'COMPLETED' && (
                     <div className="animate-fade-in" style={{ background: '#fff', borderRadius: 12, padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
-                        <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Completed Verifications</h3>
-                        <p style={{ margin: '0 0 1.25rem', fontSize: '0.87rem', color: '#64748b' }}>Milestones and reports that have been successfully verified or rejected by you.</p>
+                        <h3 style={{ margin: '0 0 0.3rem', fontWeight: 700, color: '#0f172a' }}>Completed Milestone Verifications</h3>
+                        <p style={{ margin: '0 0 1.25rem', fontSize: '0.87rem', color: '#64748b' }}>Milestones that have been successfully verified by you.</p>
                         <div className="custom-table-container">
                             <table className="custom-table">
-                                <thead><tr><th>Beneficiary</th><th>Scheme</th><th>Milestone / Report</th><th>Verified On</th><th>Decision</th><th>Remarks</th></tr></thead>
+                                <thead><tr><th>Beneficiary</th><th>Scheme</th><th>Milestone</th><th>Verified On</th><th>Decision</th><th>Remarks</th></tr></thead>
                                 <tbody>
-                                    {milestoneCompleted.length === 0 ? (
-                                        <tr><td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No completed verifications.</td></tr>
-                                    ) : milestoneCompleted.map(m => (
+                                    {milestoneCompleted.map(m => (
                                         <tr key={m.id}>
                                             <td><strong>{m.beneficiary}</strong></td>
                                             <td>{m.scheme}</td>
                                             <td>{m.milestone}</td>
                                             <td>{m.verifiedOn}</td>
-                                            <td>
-                                                {m.decision === 'Verified' ? (
-                                                    <span className="badge" style={{ background: '#dcfce7', color: '#16a34a' }}>🟢 Verified</span>
-                                                ) : m.decision === 'Forwarded to District Officer' ? (
-                                                    <span className="badge" style={{ background: '#dbeafe', color: '#1d4ed8' }}>🔵 Forwarded</span>
-                                                ) : (
-                                                    <span className="badge" style={{ background: '#fee2e2', color: '#991b1b' }}>🔴 {m.decision || 'Rejected'}</span>
-                                                )}
-                                            </td>
+                                            <td><span className="badge" style={{ background: '#dcfce7', color: '#16a34a' }}>🟢 {m.decision}</span></td>
                                             <td style={{ maxWidth: 220, fontSize: '0.84rem', color: '#475569' }}>{m.remarks}</td>
                                         </tr>
                                     ))}
@@ -295,15 +190,10 @@ const FieldMilestoneVerification = () => {
                         </div>
                     </div>
                 )}
+
             </div>
 
-            {reviewItem && <MilestoneModal item={reviewItem} onClose={() => {
-                setReviewItem(null);
-                setTab('COMPLETED');
-            }} onUpdate={() => {
-                loadData();
-                setTab('COMPLETED');
-            }} />}
+            {reviewItem && <MilestoneModal item={reviewItem} onClose={() => setReviewItem(null)} />}
         </div>
     );
 };

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class AuditLogService {
@@ -20,5 +21,9 @@ public class AuditLogService {
         auditLog.setDetails(details);
         auditLog.setTimestamp(LocalDateTime.now());
         auditLogRepository.save(auditLog);
+    }
+
+    public List<AuditLog> getAllLogs() {
+        return auditLogRepository.findAllByOrderByTimestampDesc();
     }
 }

@@ -2,66 +2,170 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaFileInvoice, FaCheckCircle, FaUpload, FaArrowRight,
-  FaTractor, FaGraduationCap, FaHeartbeat, FaStore, FaTools, FaIdCard, FaUserCheck
+  FaTractor, FaGraduationCap, FaStore, FaTools, FaIdCard,
+  FaUserCheck, FaBuilding, FaLeaf, FaWrench, FaBookOpen,
+  FaChevronDown, FaInfoCircle
 } from 'react-icons/fa';
 import { schemeService } from '../services/schemeService';
 import { applicationService } from '../services/applicationService';
+import { beneficiaryService } from '../services/beneficiaryService';
 
+/* ─────────────────────────────────────────
+   Scheme-type detection based on name / category
+   ───────────────────────────────────────── */
+const detectSchemeType = (scheme) => {
+  if (!scheme) return 'GENERAL';
+  const text = `${scheme.name} ${scheme.category} ${scheme.description || ''}`.toLowerCase();
+
+  if (/farm|kisan|agricultur|crop|land|equipment|tractor|soil|irrigation/i.test(text)) return 'FARMER';
+  if (/education|student|scholarship|college|university|course|tuition|school/i.test(text)) return 'STUDENT';
+  if (/business|msme|entrepreneur|startup|enterprise|udyam|trade|commerce/i.test(text)) return 'BUSINESS';
+  if (/housing|awas|home|shelter|construction|residential/i.test(text)) return 'HOUSING';
+  if (/health|medical|welfare|disability|pension|senior/i.test(text)) return 'WELFARE';
+  return 'GENERAL';
+};
+
+/* ─────────────────────────────────────────
+   Scheme-type → specific fields config
+   ───────────────────────────────────────── */
+const SCHEME_FIELDS = {
+  FARMER: {
+    label: 'Farmer / Agriculture Scheme',
+    icon: <FaTractor />,
+    color: '#16a34a',
+    bg: '#f0fdf4',
+    border: '#bbf7d0',
+    fields: [
+      { id: 'landHolding', label: 'Landholding Area (in Acres)', type: 'text', placeholder: 'e.g. 2.5 acres', required: true },
+      { id: 'surveyNumber', label: 'Survey / Khasra Number', type: 'text', placeholder: 'e.g. SY-204/B', required: true },
+      { id: 'cropDetails', label: 'Crop Details (current season)', type: 'text', placeholder: 'e.g. Paddy, Wheat, Cotton', required: true },
+      { id: 'equipmentRequired', label: 'Equipment / Machinery Required', type: 'text', placeholder: 'e.g. Power Tiller, Sprayer', required: true },
+      { id: 'equipmentCost', label: 'Estimated Equipment Cost (₹)', type: 'number', placeholder: 'e.g. 85000', required: true },
+    ],
+    docs: [
+      'Land Pattadar Passbook & Khasra Record (Verified PDF)',
+      'PM-KISAN Farmer Registration & Aadhaar Copy',
+      'Soil Health Card & Bank Account Passbook',
+    ],
+  },
+  STUDENT: {
+    label: 'Education / Scholarship Scheme',
+    icon: <FaGraduationCap />,
+    color: '#7c3aed',
+    bg: '#faf5ff',
+    border: '#e9d5ff',
+    fields: [
+      { id: 'institutionName', label: 'College / Institution Name', type: 'text', placeholder: 'e.g. Osmania University', required: true },
+      { id: 'courseName', label: 'Course / Programme', type: 'text', placeholder: 'e.g. B.Tech (CSE)', required: true },
+      { id: 'yearOfStudy', label: 'Year of Study', type: 'select', options: ['1st Year', '2nd Year', '3rd Year', '4th Year', 'PG 1st Year', 'PG 2nd Year'], required: true },
+      { id: 'courseFee', label: 'Annual Course Fee (₹)', type: 'number', placeholder: 'e.g. 75000', required: true },
+      { id: 'studentId', label: 'Student ID / Enrollment Number', type: 'text', placeholder: 'e.g. 22BCE1004', required: true },
+    ],
+    docs: [
+      'Current Semester Marksheet & Bonafide Certificate',
+      'College Identity Card & Admission Fee Receipt',
+      'Income Certificate & Student Bank Passbook',
+    ],
+  },
+  BUSINESS: {
+    label: 'Business / MSME Development Scheme',
+    icon: <FaStore />,
+    color: '#0891b2',
+    bg: '#f0fdff',
+    border: '#a5f3fc',
+    fields: [
+      { id: 'businessName', label: 'Business / Enterprise Name', type: 'text', placeholder: 'e.g. Sri Lakshmi Traders', required: true },
+      { id: 'businessType', label: 'Business Type', type: 'select', options: ['Sole Proprietorship', 'Partnership', 'Private Limited', 'LLP', 'Self-Help Group', 'Cooperative'], required: true },
+      { id: 'registrationNumber', label: 'Registration / Udyam Number', type: 'text', placeholder: 'e.g. UDYAM-AP-01-0012345', required: true },
+      { id: 'businessAddress', label: 'Business Address', type: 'textarea', placeholder: 'Full registered business address', required: true },
+      { id: 'investmentRequired', label: 'Investment Required (₹)', type: 'number', placeholder: 'e.g. 200000', required: true },
+      { id: 'businessPlan', label: 'Business Plan Summary', type: 'textarea', placeholder: 'Brief description of the project / expansion', required: false },
+    ],
+    docs: [
+      'Udyam MSME Registration Certificate (Verified)',
+      'Business Project Report & GST Identification',
+      'Bank Statement (Last 6 Months) & PAN Card',
+    ],
+  },
+  HOUSING: {
+    label: 'Housing / Shelter Scheme',
+    icon: <FaBuilding />,
+    color: '#b45309',
+    bg: '#fffbeb',
+    border: '#fde68a',
+    fields: [
+      { id: 'plotNumber', label: 'Plot / Survey Number', type: 'text', placeholder: 'e.g. Plot No. 42-B', required: true },
+      { id: 'houseType', label: 'Type of House Required', type: 'select', options: ['New Construction', 'Renovation/Upgrade', 'Kutcha to Pucca Upgrade'], required: true },
+      { id: 'estimatedCost', label: 'Estimated Construction Cost (₹)', type: 'number', placeholder: 'e.g. 150000', required: true },
+      { id: 'landOwnership', label: 'Land Ownership Document Reference', type: 'text', placeholder: 'e.g. Pattadar No. 1234', required: true },
+    ],
+    docs: [
+      'Land Ownership / Pattadar Passbook',
+      'Municipal/Gram Panchayat Approval & Site Map',
+      'Aadhaar Card & Income Certificate',
+    ],
+  },
+  WELFARE: {
+    label: 'Welfare / Pension Scheme',
+    icon: <FaTools />,
+    color: '#dc2626',
+    bg: '#fff1f2',
+    border: '#fecdd3',
+    fields: [
+      { id: 'disabilityType', label: 'Category / Condition', type: 'select', options: ['Senior Citizen (60+)', 'Differently Abled', 'Widow', 'Below Poverty Line', 'Other'], required: true },
+      { id: 'pensionAccount', label: 'Existing Pension Account (if any)', type: 'text', placeholder: 'Pension ID or N/A', required: false },
+      { id: 'dependents', label: 'Number of Dependents', type: 'number', placeholder: 'e.g. 3', required: true },
+    ],
+    docs: [
+      'Senior Citizen / Disability Certificate (Competent Authority)',
+      'Medical Certificate & Pension Passbook (if any)',
+      'Aadhaar Card & Household Income Proof',
+    ],
+  },
+  GENERAL: {
+    label: 'General Welfare Scheme',
+    icon: <FaLeaf />,
+    color: '#0284c7',
+    bg: '#f0f9ff',
+    border: '#bae6fd',
+    fields: [
+      { id: 'purposeOfGrant', label: 'Purpose / Use of Grant', type: 'textarea', placeholder: 'Describe how you will use this subsidy', required: true },
+      { id: 'estimatedAmount', label: 'Estimated Amount Required (₹)', type: 'number', placeholder: 'e.g. 50000', required: true },
+    ],
+    docs: [
+      'Identity Proof (Aadhaar / Voter ID / PAN)',
+      'Income Certificate from Competent Authority',
+      'Bank Passbook & Address Proof',
+    ],
+  },
+};
+
+/* ─────────────────────────────────────────
+   Apply Component
+   ───────────────────────────────────────── */
 const Apply = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const preSelectedSchemeId = location.state?.schemeId || new URLSearchParams(location.search).get('schemeId');
+
   const [schemes, setSchemes] = useState([]);
   const [selectedSchemeId, setSelectedSchemeId] = useState('');
-  const preSelectedSchemeId = location.state?.schemeId || new URLSearchParams(location.search).get('schemeId');
-  const [income, setIncome] = useState('150000');
-  const [category, setCategory] = useState('GENERAL');
+  const [selectedScheme, setSelectedScheme] = useState(null);
+  const [schemeType, setSchemeType] = useState('GENERAL');
+
+  // Common fields
+  const [beneficiaryName, setBeneficiaryName] = useState(localStorage.getItem('userName') || '');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [mobile, setMobile] = useState('');
   const [address, setAddress] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [income, setIncome] = useState('');
+  const [socialCategory, setSocialCategory] = useState('GENERAL');
 
-  // Beneficiary Type details from session/localStorage
-  const beneficiaryType = localStorage.getItem('beneficiaryType') || 'FARMER';
-  const rawDetails = localStorage.getItem('beneficiaryDetails');
-  const specificDetails = rawDetails ? JSON.parse(rawDetails) : {};
-
-  // Custom document options tailored per Beneficiary Type
-  const getDocumentOptions = () => {
-    switch (beneficiaryType) {
-      case 'FARMER':
-        return [
-          'Land Pattadar Passbook & Khasra Record (Verified PDF)',
-          'PM-KISAN Farmer Registration & Aadhaar Copy',
-          'Soil Health Card & Bank Account Passbook'
-        ];
-      case 'STUDENT':
-        return [
-          'Current Semester Marksheet & Bonafide Certificate',
-          'College Identity Card & Admission Fee Receipt',
-          'Income Certificate & Student Bank Passbook'
-        ];
-      case 'SENIOR_CITIZEN':
-        return [
-          'Senior Citizen Identity Card & Age Proof',
-          'Medical Fitness Certificate & Pension Passbook',
-          'Aadhaar Card & Household Income Proof'
-        ];
-      case 'ENTREPRENEUR':
-        return [
-          'Udyam MSME Registration Certificate (Verified)',
-          'Business Project Report & GST Identification',
-          'Bank Statement (Last 6 Months) & PAN Card'
-        ];
-      case 'WORKER':
-      default:
-        return [
-          'E-Shram Labour Smart Card & Aadhaar Verification',
-          'Trade Union Membership Certificate & Bank Passbook',
-          'Income Certificate & Residential Address Proof'
-        ];
-    }
-  };
-
-  const docOptions = getDocumentOptions();
-  const [documentType, setDocumentType] = useState(docOptions[0]);
+  // Specific field values (dynamic)
+  const [specificValues, setSpecificValues] = useState({});
+  const [docChecks, setDocChecks] = useState({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -69,69 +173,128 @@ const Apply = () => {
 
   useEffect(() => {
     fetchSchemes();
+    loadBeneficiaryProfile();
   }, []);
+
+  const loadBeneficiaryProfile = async () => {
+    try {
+      const profile = await beneficiaryService.getProfile();
+      if (!profile) return;
+
+      if (profile.aadhaarNumber) setAadhaarNumber(profile.aadhaarNumber);
+      if (profile.phone) setMobile(profile.phone);
+      if (profile.address) setAddress(profile.address);
+      if (profile.bankAccountNumber) setBankAccount(profile.bankAccountNumber);
+      if (profile.ifscCode) setIfscCode(profile.ifscCode);
+      if (profile.annualIncome != null) setIncome(String(profile.annualIncome));
+      if (profile.socialCategory) setSocialCategory(profile.socialCategory.toUpperCase());
+      if (localStorage.getItem('userName')) setBeneficiaryName(localStorage.getItem('userName'));
+    } catch (error) {
+      console.warn('Profile prefill unavailable; using blank form values', error);
+    }
+  };
 
   const fetchSchemes = async () => {
     try {
       const data = await schemeService.getSchemes();
       setSchemes(data || []);
       if (data && data.length > 0) {
-        if (preSelectedSchemeId && data.find(s => String(s.id) === String(preSelectedSchemeId))) {
-          setSelectedSchemeId(preSelectedSchemeId);
-        } else {
-          setSelectedSchemeId(data[0].id);
-        }
+        const matched = preSelectedSchemeId
+          ? data.find(s => String(s.id) === String(preSelectedSchemeId))
+          : null;
+        const target = matched || data[0];
+        setSelectedSchemeId(String(target.id));
+        setSelectedScheme(target);
+        const type = detectSchemeType(target);
+        setSchemeType(type);
+        // Initialise all doc checkboxes as unchecked
+        const initChecks = {};
+        (SCHEME_FIELDS[type]?.docs || []).forEach((_, i) => { initChecks[i] = false; });
+        setDocChecks(initChecks);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
+  const handleSchemeChange = (e) => {
+    const id = e.target.value;
+    setSelectedSchemeId(id);
+    const scheme = schemes.find(s => String(s.id) === String(id));
+    setSelectedScheme(scheme);
+    const type = detectSchemeType(scheme);
+    setSchemeType(type);
+    setSpecificValues({});
+    // Re-initialise doc checkboxes for new scheme type
+    const initChecks = {};
+    (SCHEME_FIELDS[type]?.docs || []).forEach((_, i) => { initChecks[i] = false; });
+    setDocChecks(initChecks);
+    setErrors({});
+  };
 
+  const handleSpecificChange = (fieldId, value) => {
+    setSpecificValues(prev => ({ ...prev, [fieldId]: value }));
+    if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
+  };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!aadhaarNumber.trim() || !/^\d{12}$/.test(aadhaarNumber)) {
-      newErrors.aadhaar = 'Aadhaar must be exactly 12 digits (numeric)';
-    }
-    if (!income.trim() || parseInt(income) < 0) {
-      newErrors.income = 'Please enter a valid household income';
-    }
-    if (!address.trim() || address.trim().length < 10) {
-      newErrors.address = 'Please enter complete permanent address (min 10 chars)';
-    }
+  const validate = () => {
+    const errs = {};
+    if (!beneficiaryName.trim()) errs.beneficiaryName = 'Name is required';
+    if (!/^\d{12}$/.test(aadhaarNumber)) errs.aadhaarNumber = 'Aadhaar must be exactly 12 digits';
+    if (!/^\d{10}$/.test(mobile)) errs.mobile = 'Mobile must be exactly 10 digits';
+    if (!address.trim() || address.trim().length < 10) errs.address = 'Please enter complete address (min 10 chars)';
+    if (!bankAccount.trim()) errs.bankAccount = 'Bank account number is required';
+    if (!ifscCode.trim()) errs.ifscCode = 'IFSC code is required';
+    if (!income || parseInt(income) < 0) errs.income = 'Please enter annual household income';
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Validate scheme-specific required fields
+    const config = SCHEME_FIELDS[schemeType];
+    if (config) {
+      config.fields.forEach(f => {
+        if (f.required && !specificValues[f.id]?.toString().trim()) {
+          errs[f.id] = `${f.label} is required`;
+        }
+      });
+      // All document checkboxes must be ticked
+      const allChecked = config.docs.every((_, i) => docChecks[i]);
+      if (!allChecked) errs.docs = 'Please confirm you have all required documents';
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validate()) {
+      // scroll to first error
+      const firstErrEl = document.querySelector('.field-error');
+      if (firstErrEl) firstErrEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     setIsSubmitting(true);
-
     try {
-      const selectedScheme = schemes.find(s => String(s.id) === String(selectedSchemeId));
       const payload = {
-        schemeId: selectedSchemeId || 1,
+        schemeId: selectedSchemeId,
         schemeName: selectedScheme?.name || 'Government Welfare Scheme',
-        beneficiaryType,
-        specificDetails,
-        income,
-        category,
+        userEmail: localStorage.getItem('userEmail'),
+        beneficiaryName,
         aadhaarNumber,
+        mobile,
         address,
-        documentType
+        bankAccount,
+        ifscCode,
+        income,
+        socialCategory,
+        documentType: typeConfig.docs.filter((_, i) => docChecks[i]).join(' | '),
+        schemeType,
+        specificDetails: specificValues,
       };
 
       const result = await applicationService.applyForScheme(payload);
-
       if (result.success || result.id) {
-        setSuccessMessage(`Application #APP-${result.id || '101'} submitted successfully! Your application has been sent for Field Officer review.`);
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000);
+        setSuccessMessage(`Application #APP-${result.id || '101'} submitted! Sent for Field Officer review.`);
+        setTimeout(() => navigate('/dashboard'), 2500);
       }
     } catch (error) {
       console.error(error);
@@ -140,179 +303,242 @@ const Apply = () => {
     }
   };
 
-  const getBeneficiaryIcon = () => {
-    switch (beneficiaryType) {
-      case 'FARMER': return <FaTractor style={{ color: '#2563eb' }} />;
-      case 'STUDENT': return <FaGraduationCap style={{ color: '#a855f7' }} />;
-      case 'SENIOR_CITIZEN': return <FaHeartbeat style={{ color: '#ca8a04' }} />;
-      case 'ENTREPRENEUR': return <FaStore style={{ color: '#059669' }} />;
-      case 'WORKER': default: return <FaTools style={{ color: '#0891b2' }} />;
-    }
+  const typeConfig = SCHEME_FIELDS[schemeType] || SCHEME_FIELDS.GENERAL;
+  const maskedAadhaar = aadhaarNumber.length === 12
+    ? 'XXXX XXXX ' + aadhaarNumber.slice(8)
+    : '';
+  const maskedBank = bankAccount.length > 4
+    ? 'XXXX XXXX ' + bankAccount.slice(-4)
+    : '';
+
+  // ── Render a dynamic field ──
+  const renderField = (f) => {
+    const val = specificValues[f.id] || '';
+    const err = errors[f.id];
+    return (
+      <div className="form-group" key={f.id}>
+        <label htmlFor={f.id} style={{ fontWeight: 600, color: '#334155' }}>{f.label}</label>
+        {f.type === 'select' ? (
+          <select
+            id={f.id}
+            className="form-control"
+            value={val}
+            onChange={e => handleSpecificChange(f.id, e.target.value)}
+          >
+            <option value="">— Select —</option>
+            {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : f.type === 'textarea' ? (
+          <textarea
+            id={f.id}
+            className="form-control"
+            rows="2"
+            placeholder={f.placeholder}
+            value={val}
+            onChange={e => handleSpecificChange(f.id, e.target.value)}
+          />
+        ) : (
+          <input
+            id={f.id}
+            type={f.type}
+            className="form-control"
+            placeholder={f.placeholder}
+            value={val}
+            onChange={e => handleSpecificChange(f.id, e.target.value)}
+          />
+        )}
+        {err && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{err}</div>}
+      </div>
+    );
   };
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1rem 0' }}>
+    <div className="animate-fade-in" style={{ padding: '1.5rem 0', background: '#f8fafc', minHeight: '80vh' }}>
 
+      {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '2rem', color: '#0f172a', fontWeight: 800 }}>Apply for Government Subsidy</h2>
-        <p style={{ color: '#475569' }}>Complete the digital application tailored for your beneficiary profile</p>
-      </div>
-
-      {/* Beneficiary Type Banner */}
-      <div style={{ maxWidth: '1050px', margin: '0 auto 1.5rem auto' }}>
-        <div style={{ background: '#ffffff', padding: '1rem 1.5rem', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '5px solid #2563eb', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <div style={{ fontSize: '1.5rem', display: 'flex', alignItems: 'center' }}>
-              {getBeneficiaryIcon()}
-            </div>
-            <div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                Applicant Category Profile
-              </span>
-              <h4 style={{ color: '#0f172a', fontSize: '1.1rem', margin: 0, fontWeight: 700 }}>
-                {beneficiaryType.replace('_', ' ')} Beneficiary
-              </h4>
-            </div>
-          </div>
-          <span className="badge badge-submitted" style={{ padding: '0.4rem 0.85rem' }}>
-            Profile Verified
-          </span>
-        </div>
+        <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Select a scheme — the form will automatically load the relevant fields for that scheme type.</p>
       </div>
 
       {successMessage && (
-        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700, maxWidth: '1050px', margin: '0 auto 1.5rem auto' }}>
-          <FaCheckCircle /> {successMessage}
+        <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', color: '#047857', padding: '1.1rem 1.5rem', borderRadius: '12px', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700, maxWidth: '780px', margin: '0 auto 1.5rem' }}>
+          <FaCheckCircle style={{ marginRight: 8 }} />{successMessage}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '750px', margin: '0 auto' }}>
+      <form onSubmit={handleSubmit} style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-        {/* Main Application Form */}
-        <form onSubmit={handleSubmit} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '2.5rem', boxShadow: 'var(--shadow-md)' }}>
-
-          <div className="form-group">
-            <label htmlFor="scheme">Select Targeted Welfare Scheme</label>
-            <select
-              id="scheme"
-              className="form-control"
-              value={selectedSchemeId}
-              onChange={(e) => setSelectedSchemeId(e.target.value)}
-            >
-              {schemes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} (Max Amount: ₹{s.budget || s.maxAmount || '250000'})
-                </option>
-              ))}
-            </select>
+        {/* ── Scheme Selector ── */}
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.75rem', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.2rem' }}>
+            <FaFileInvoice style={{ color: '#0284c7', marginRight: 8 }} />Step 1 — Select Scheme
+          </h3>
+          <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '1rem' }}>Choose the scheme you want to apply for. Fields will update automatically.</p>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label htmlFor="scheme">Welfare Scheme</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                id="scheme"
+                className="form-control"
+                value={selectedSchemeId}
+                onChange={handleSchemeChange}
+                style={{ paddingRight: '2.5rem', appearance: 'none' }}
+              >
+                {schemes.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} — Max ₹{(s.budget || s.maxAmount || 0).toLocaleString()}
+                  </option>
+                ))}
+              </select>
+              <FaChevronDown style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            </div>
           </div>
 
-          {/* Specific Attributes Display */}
-          {Object.keys(specificDetails).length > 0 && (
-            <div style={{ background: '#fffbeb', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', border: '1px solid #fef08a' }}>
-              <div style={{ fontSize: '0.82rem', color: '#854d0e', marginBottom: '0.5rem', fontWeight: 700 }}>
-                ATTACHED BENEFICIARY DETAILS:
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.88rem', color: '#334155' }}>
-                {Object.entries(specificDetails).map(([k, v]) => (
-                  <div key={k}>
-                    <span style={{ color: '#64748b', textTransform: 'capitalize' }}>{k.replace(/([A-Z])/g, ' $1')}:</span>{' '}
-                    <strong style={{ color: '#0f172a' }}>{v}</strong>
-                  </div>
-                ))}
+          {/* Scheme type badge */}
+          {selectedScheme && (
+            <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1.1rem', background: typeConfig.bg, border: `1px solid ${typeConfig.border}`, borderRadius: '10px' }}>
+              <span style={{ fontSize: '1.4rem', color: typeConfig.color }}>{typeConfig.icon}</span>
+              <div>
+                <div style={{ fontWeight: 700, color: typeConfig.color, fontSize: '0.92rem' }}>{typeConfig.label}</div>
+                <div style={{ color: '#64748b', fontSize: '0.8rem' }}>{selectedScheme.description || selectedScheme.eligibilityCriteria || 'Scheme-specific fields loaded below'}</div>
               </div>
             </div>
           )}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="aadhaar"><FaIdCard /> Aadhaar Card Number (12 Digits)</label>
-            <input
-              type="text"
-              id="aadhaar"
-              className="form-control"
-              placeholder="e.g. 987654321012"
-              maxLength="12"
-              value={aadhaarNumber}
-              onChange={(e) => { setAadhaarNumber(e.target.value); if (errors.aadhaar) setErrors({ ...errors, aadhaar: null }) }}
-              required
-            />
-            {errors.aadhaar && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.aadhaar}</div>}
+        {/* ── Scheme-Specific Fields ── */}
+        {typeConfig.fields.length > 0 && (
+          <div style={{ background: '#fff', border: `2px solid ${typeConfig.border}`, borderRadius: '16px', padding: '1.75rem', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: typeConfig.color, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '1.1rem' }}>{typeConfig.icon}</span>
+              Step 2 — {typeConfig.label} Details
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '1.25rem' }}>Scheme-specific information required for this application.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0 1.25rem' }}>
+              {typeConfig.fields.map(f => renderField(f))}
+            </div>
           </div>
+        )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        {/* ── Common Fields ── */}
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.75rem', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.2rem' }}>
+            <FaIdCard style={{ color: '#0284c7', marginRight: 8 }} />Step 3 — Personal & Banking Details
+          </h3>
+          <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '1.25rem' }}>Common details required for all scheme applications.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1.25rem' }}>
+            {/* Beneficiary Name */}
             <div className="form-group">
-              <label htmlFor="income">Annual Household Income (₹)</label>
-              <input
-                type="number"
-                id="income"
-                className="form-control"
-                value={income}
-                onChange={(e) => { setIncome(e.target.value); if (errors.income) setErrors({ ...errors, income: null }) }}
-                required
-              />
-              {errors.income && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.income}</div>}
+              <label htmlFor="beneficiaryName">Full Name (as per Aadhaar)</label>
+              <input id="beneficiaryName" type="text" className="form-control" placeholder="e.g. Srinivas Rao" value={beneficiaryName} onChange={e => { setBeneficiaryName(e.target.value); if (errors.beneficiaryName) setErrors(p => ({ ...p, beneficiaryName: null })); }} />
+              {errors.beneficiaryName && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.beneficiaryName}</div>}
             </div>
 
+            {/* Mobile */}
             <div className="form-group">
-              <label htmlFor="category">Social Category</label>
-              <select
-                id="category"
-                className="form-control"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
+              <label htmlFor="mobile">Mobile Number</label>
+              <input id="mobile" type="text" className="form-control" placeholder="10-digit mobile number" maxLength="10" value={mobile} onChange={e => { setMobile(e.target.value.replace(/\D/g, '')); if (errors.mobile) setErrors(p => ({ ...p, mobile: null })); }} />
+              {errors.mobile && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.mobile}</div>}
+            </div>
+
+            {/* Aadhaar */}
+            <div className="form-group">
+              <label htmlFor="aadhaar">Aadhaar Card Number (12 Digits)</label>
+              <input id="aadhaar" type="text" className="form-control" placeholder="e.g. 987654321012" maxLength="12" value={aadhaarNumber} onChange={e => { setAadhaarNumber(e.target.value.replace(/\D/g, '')); if (errors.aadhaarNumber) setErrors(p => ({ ...p, aadhaarNumber: null })); }} />
+              {maskedAadhaar && <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem' }}>Will be stored as: <strong>{maskedAadhaar}</strong></div>}
+              {errors.aadhaarNumber && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.aadhaarNumber}</div>}
+            </div>
+
+            {/* Social Category */}
+            <div className="form-group">
+              <label htmlFor="socialCat">Social Category</label>
+              <select id="socialCat" className="form-control" value={socialCategory} onChange={e => setSocialCategory(e.target.value)}>
                 <option value="GENERAL">General</option>
                 <option value="OBC">OBC</option>
                 <option value="SC">SC</option>
                 <option value="ST">ST</option>
+                <option value="EWS">EWS</option>
               </select>
+            </div>
+
+            {/* Bank Account */}
+            <div className="form-group">
+              <label htmlFor="bankAccount">Bank Account Number</label>
+              <input id="bankAccount" type="text" className="form-control" placeholder="e.g. 1234567890123" value={bankAccount} onChange={e => { setBankAccount(e.target.value.replace(/\D/g, '')); if (errors.bankAccount) setErrors(p => ({ ...p, bankAccount: null })); }} />
+              {maskedBank && <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem' }}>Stored as: <strong>{maskedBank}</strong></div>}
+              {errors.bankAccount && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.bankAccount}</div>}
+            </div>
+
+            {/* IFSC */}
+            <div className="form-group">
+              <label htmlFor="ifsc">Bank IFSC Code</label>
+              <input id="ifsc" type="text" className="form-control" placeholder="e.g. SBIN0001234" maxLength="11" value={ifscCode} onChange={e => { setIfscCode(e.target.value.toUpperCase()); if (errors.ifscCode) setErrors(p => ({ ...p, ifscCode: null })); }} />
+              {errors.ifscCode && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.ifscCode}</div>}
+            </div>
+
+            {/* Income */}
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="income">Annual Household Income (₹)</label>
+              <input id="income" type="number" className="form-control" placeholder="e.g. 150000" value={income} onChange={e => { setIncome(e.target.value); if (errors.income) setErrors(p => ({ ...p, income: null })); }} />
+              {errors.income && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.income}</div>}
             </div>
           </div>
 
+          {/* Address */}
           <div className="form-group">
             <label htmlFor="address">Permanent Residential Address</label>
-            <textarea
-              id="address"
-              className="form-control"
-              rows="3"
-              placeholder="Enter full address as per Aadhaar Card"
-              value={address}
-              onChange={(e) => { setAddress(e.target.value); if (errors.address) setErrors({ ...errors, address: null }) }}
-              required
-            />
-            {errors.address && <div style={{ color: '#be123c', fontSize: '0.82rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.address}</div>}
+            <textarea id="address" className="form-control" rows="2" placeholder="Enter full address as per Aadhaar Card" value={address} onChange={e => { setAddress(e.target.value); if (errors.address) setErrors(p => ({ ...p, address: null })); }} />
+            {errors.address && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{errors.address}</div>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="docs" style={{ color: '#1d4ed8', fontWeight: 700 }}>
-              <FaUpload /> Tailored Supporting Document Package ({beneficiaryType.replace('_', ' ')})
+          {/* Documents Checklist */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ color: '#1d4ed8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.75rem' }}>
+              <FaUpload /> Required Supporting Documents
             </label>
-            <select
-              id="docs"
-              className="form-control"
-              value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
-              style={{ borderColor: '#bfdbfe' }}
-            >
-              {docOptions.map((doc, idx) => (
-                <option key={idx} value={doc}>
-                  {doc}
-                </option>
+            <div style={{ background: errors.docs ? '#fff1f2' : '#f0f9ff', border: `1px solid ${errors.docs ? '#fecdd3' : '#bae6fd'}`, borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <p style={{ fontSize: '0.82rem', color: '#475569', margin: 0, marginBottom: '0.25rem' }}>
+                Tick each document to confirm you have it ready. Physical copies must be submitted at the district office.
+              </p>
+              {typeConfig.docs.map((doc, idx) => (
+                <label key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer', fontSize: '0.9rem', color: '#1e3a5f', fontWeight: docChecks[idx] ? 600 : 400 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!docChecks[idx]}
+                    onChange={e => {
+                      setDocChecks(prev => ({ ...prev, [idx]: e.target.checked }));
+                      if (errors.docs) setErrors(p => ({ ...p, docs: null }));
+                    }}
+                    style={{ marginTop: '2px', accentColor: '#0284c7', width: 16, height: 16, flexShrink: 0 }}
+                  />
+                  <span style={{ textDecoration: docChecks[idx] ? 'none' : 'none', opacity: docChecks[idx] ? 1 : 0.8 }}>
+                    {docChecks[idx] ? '✅ ' : '📄 '}{doc}
+                  </span>
+                </label>
               ))}
-            </select>
+            </div>
+            {errors.docs && <div className="field-error" style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.4rem', fontWeight: 600 }}>{errors.docs}</div>}
           </div>
+        </div>
 
-          <button type="submit" className="btn-brand" style={{ width: '100%', justifyContent: 'center', marginTop: '1rem', padding: '0.85rem', fontWeight: 700 }} disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting Application...' : `Submit Application as ${beneficiaryType.replace('_', ' ')}`} <FaArrowRight />
-          </button>
-        </form>
+        {/* ── Submit ── */}
+        <button
+          type="submit"
+          className="btn-brand"
+          style={{ width: '100%', justifyContent: 'center', padding: '1rem', fontWeight: 700, fontSize: '1rem', borderRadius: '12px' }}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Submitting Application...' : 'Submit Application'} <FaArrowRight style={{ marginLeft: 8 }} />
+        </button>
 
-        {/* 3-Stage Verification Pipeline Info */}
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-xl)', padding: '1.25rem 1.75rem', fontSize: '0.88rem', color: '#475569', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-          <FaUserCheck style={{ color: '#2563eb', fontSize: '1.3rem', marginTop: 2, flexShrink: 0 }} />
+        {/* ── Pipeline Info ── */}
+        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '1.25rem 1.5rem', fontSize: '0.88rem', color: '#0369a1', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+          <FaUserCheck style={{ fontSize: '1.3rem', marginTop: 2, flexShrink: 0 }} />
           <div>
-            <h4 style={{ color: '#0f172a', marginBottom: '0.4rem', fontSize: '0.95rem', fontWeight: 700 }}>3-Stage Verification Pipeline</h4>
-            <ol style={{ paddingLeft: '1.1rem', lineHeight: '1.8', margin: 0 }}>
+            <h4 style={{ color: '#0c4a6e', marginBottom: '0.4rem', fontWeight: 700 }}>3-Stage Verification Pipeline</h4>
+            <ol style={{ paddingLeft: '1.1rem', lineHeight: '1.9', margin: 0 }}>
               <li>Field Officer conducts ground visit &amp; document review.</li>
               <li>District Officer performs secondary scrutiny.</li>
               <li>Finance Approver signs off &amp; credits bank account.</li>
@@ -320,8 +546,7 @@ const Apply = () => {
           </div>
         </div>
 
-      </div>
-
+      </form>
     </div>
   );
 };

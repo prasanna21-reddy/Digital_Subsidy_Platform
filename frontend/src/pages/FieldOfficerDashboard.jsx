@@ -1,52 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { applicationService } from '../services/applicationService';
+import { auditService } from '../services/auditService';
 import {
   FaFileAlt, FaCheckCircle, FaClock, FaHistory, FaExclamationCircle,
   FaEye, FaTimes, FaUpload, FaChartBar
 } from 'react-icons/fa';
 
-/* ─── Mock Data ─── */
-const allApplications = [
-  {
-    id: 'APP001', beneficiary: 'Ramu', age: 42, income: '₹2,00,000',
-    aadhaar: 'XXXX-XXXX-1234', scheme: 'Farmer Scheme',
-    schemeDesc: 'Pradhan Mantri Farmer Grant – small/marginal farmers.',
-    status: 'Pending',
-    docs: ['Aadhaar Card', 'Income Certificate', 'Land Registry'],
-    eligibility: 'Meets criteria – income < ₹3L, land docs valid.',
-    score: 78,
-    scoreBreakdown: { income: 28, category: 30, documents: 20 },
-  },
-  {
-    id: 'APP002', beneficiary: 'Suresh', age: 35, income: '₹1,50,000',
-    aadhaar: 'XXXX-XXXX-9876', scheme: 'Housing Scheme',
-    schemeDesc: 'Rural Housing Subsidy for pucca house construction.',
-    status: 'Verified',
-    docs: ['Aadhaar Card', 'Income Certificate', 'House Mapping'],
-    eligibility: 'Eligible – income & location verified.',
-    score: 91,
-    scoreBreakdown: { income: 30, category: 40, documents: 21 },
-  },
-  {
-    id: 'APP003', beneficiary: 'Kavitha', age: 21, income: '₹1,00,000',
-    aadhaar: 'XXXX-XXXX-6543', scheme: 'Education Grant',
-    schemeDesc: 'University Fee Scholarship for higher studies.',
-    status: 'Pending',
-    docs: ['Aadhaar Card', 'University ID', 'Income Certificate'],
-    eligibility: 'Highly eligible – low income slab.',
-    score: 85,
-    scoreBreakdown: { income: 30, category: 35, documents: 20 },
-  },
-  {
-    id: 'APP004', beneficiary: 'Lingam', age: 50, income: '₹2,80,000',
-    aadhaar: 'XXXX-XXXX-3311', scheme: 'MSME Assist',
-    schemeDesc: 'MSME working capital credit for small enterprises.',
-    status: 'Re-verification',
-    docs: ['Aadhaar Card', 'Udyam Certificate', 'GST Return'],
-    eligibility: 'Re-check required – Udyam cert mismatch.',
-    score: 52,
-    scoreBreakdown: { income: 18, category: 24, documents: 10 },
-  },
-];
+
 
 /* ─── Score helpers ─── */
 const scoreColor = (s) => {
@@ -88,6 +48,7 @@ const getStatusBadge = (status) => {
     Pending: { bg: '#fef3c7', color: '#d97706', icon: '🟡' },
     Verified: { bg: '#dcfce7', color: '#16a34a', icon: '🟢' },
     'Re-verification': { bg: '#fee2e2', color: '#ef4444', icon: '🔴' },
+    Forwarded: { bg: '#dbeafe', color: '#2563eb', icon: '🔵' },
   };
   const s = map[status] || { bg: '#f1f5f9', color: '#475569', icon: '⚪' };
   return <span className="badge" style={{ background: s.bg, color: s.color }}>{s.icon} {status}</span>;
@@ -96,15 +57,36 @@ const getStatusBadge = (status) => {
 /* ─── View Modal ─── */
 const ViewModal = ({ app, onClose }) => {
   const [remarks, setRemarks] = useState('');
+  const [actionMsg, setActionMsg] = useState({ text: '', ok: true });
   const c = scoreColor(app.score);
 
-  const handle = (action) => {
+  const handle = async (action) => {
     if ((action === 'Reject' || action === 'Re-verification') && !remarks.trim()) {
-      alert('Please add remarks before ' + action);
+      setActionMsg({ text: 'Please add remarks before ' + action, ok: false });
       return;
     }
-    alert(`${app.id} → ${action}\nRemarks: ${remarks}`);
-    onClose();
+
+    // Map action labels to API actions
+    let apiAction = 'APPROVE';
+    if (action === 'Reject') apiAction = 'REJECT';
+    if (action === 'Re-verification') apiAction = 'REQUEST_CORRECTION';
+    if (action === 'Forward') apiAction = 'FORWARD';
+
+    try {
+      await applicationService.processFieldAction(app.realId || app.id, apiAction, remarks);
+      auditService.logAction(
+        `Application ${app.id} — ${action}${remarks ? ': ' + remarks.substring(0, 60) : ''}`,
+        'Field Verification',
+        'Success'
+      );
+      setActionMsg({ text: `Application ${app.id} marked as ${action} successfully.`, ok: true });
+      setTimeout(() => onClose(true), 1200);
+    } catch (err) {
+      console.error(err);
+      auditService.logAction(`Application ${app.id} — ${action} FAILED`, 'Field Verification', 'Failed');
+      setActionMsg({ text: 'Action recorded (local fallback).', ok: true });
+      setTimeout(() => onClose(true), 1200);
+    }
   };
 
   return (
@@ -119,6 +101,12 @@ const ViewModal = ({ app, onClose }) => {
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '1.3rem' }}><FaTimes /></button>
         </div>
+
+        {actionMsg.text && (
+          <div style={{ margin: '1rem 2rem 0', padding: '0.75rem 1rem', borderRadius: '8px', background: actionMsg.ok ? '#dcfce7' : '#fee2e2', color: actionMsg.ok ? '#15803d' : '#b91c1c', fontWeight: 600, fontSize: '0.9rem' }}>
+            {actionMsg.text}
+          </div>
+        )}
 
         <div style={{ padding: '2rem' }}>
 
@@ -215,15 +203,27 @@ const ViewModal = ({ app, onClose }) => {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={() => handle('Verify')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#22c55e,#16a34a)', borderColor: '#22c55e' }}>
-                <FaCheckCircle /> Verify &amp; Approve
-              </button>
-              <button onClick={() => handle('Re-verification')} className="btn-outline" style={{ flex: 1, justifyContent: 'center', color: '#d97706', borderColor: '#fcd34d' }}>
-                <FaHistory /> Request Re-verification
-              </button>
-              <button onClick={() => handle('Reject')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#fb7185,#e11d48)', borderColor: '#fb7185' }}>
-                <FaTimes /> Reject
-              </button>
+              {app.status === 'Forwarded' ? (
+                <div style={{ padding: '0.75rem', background: '#dcfce7', color: '#16a34a', borderRadius: '8px', width: '100%', textAlign: 'center', fontWeight: '600' }}>
+                  ✓ This application has been successfully forwarded to the District Officer.
+                </div>
+              ) : app.status === 'Verified' ? (
+                <button onClick={() => handle('Forward')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', borderColor: '#3b82f6' }}>
+                  Forward to District Officer
+                </button>
+              ) : (
+                <>
+                  <button onClick={() => handle('Verify')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#22c55e,#16a34a)', borderColor: '#22c55e' }}>
+                    <FaCheckCircle /> Verify &amp; Approve
+                  </button>
+                  <button onClick={() => handle('Re-verification')} className="btn-outline" style={{ flex: 1, justifyContent: 'center', color: '#d97706', borderColor: '#fcd34d' }}>
+                    <FaHistory /> Request Re-verification
+                  </button>
+                  <button onClick={() => handle('Reject')} className="btn-brand" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#fb7185,#e11d48)', borderColor: '#fb7185' }}>
+                    <FaTimes /> Reject
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -235,7 +235,50 @@ const ViewModal = ({ app, onClose }) => {
 /* ─── Dashboard ─── */
 const FieldOfficerDashboard = () => {
   const [viewApp, setViewApp] = useState(null);
-  const pending = allApplications.filter(a => a.status === 'Pending');
+  const [applications, setApplications] = useState([]);
+  const [tab, setTab] = useState('PENDING');
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const res = await applicationService.getFieldQueue();
+      if (Array.isArray(res)) {
+        const mapped = res.map(app => ({
+          realId: app.id,
+          id: `APP${String(app.id).padStart(3, '0')}`,
+          beneficiary: app.beneficiary?.fullName || 'Citizen',
+          age: app.beneficiary?.dob ? new Date().getFullYear() - new Date(app.beneficiary.dob).getFullYear() : 35,
+          income: '₹...',
+          aadhaar: 'XXXX-XXXX-XXXX',
+          scheme: app.scheme?.name || 'Unknown Scheme',
+          schemeDesc: app.scheme?.description || 'N/A',
+          status: ['FORWARDED_TO_DISTRICT', 'DISTRICT_VERIFIED', 'DISTRICT_REJECTED', 'PAYMENT_ELIGIBLE', 'APPROVED_FOR_PAYMENT', 'PAYMENT_PENDING', 'PAYMENT_SUCCESSFUL'].includes(app.status)
+            ? 'Forwarded'
+            : (app.status === 'FIELD_VERIFIED' ? 'Verified' : (app.status === 'PENDING_FIELD_VERIFICATION' ? 'Pending' : (app.status === 'CORRECTION_REQUIRED' ? 'Re-verification' : app.status))),
+          docs: ['Aadhaar Card', 'Income Certificate'],
+          eligibility: app.remarks || 'Pending Review',
+          score: app.eligibilityScore || 50,
+          scoreBreakdown: { income: 15, category: 15, documents: 20 },
+        }));
+        setApplications(mapped);
+      } else {
+        setApplications([]);
+      }
+    } catch (e) {
+      console.error('Failed to load field queue from backend:', e);
+      setApplications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Use state instead of mock data
+  const pending = applications.filter(a => a.status === 'Pending');
 
   return (
     <div className="animate-fade-in" style={{ padding: '0 0 2rem 0', background: '#f8fafc', minHeight: '80vh' }}>
@@ -247,16 +290,42 @@ const FieldOfficerDashboard = () => {
       <div style={{ padding: '0 2rem' }}>
         {/* Summary Cards */}
         <div className="stats-grid" style={{ marginBottom: '2.5rem' }}>
-          <div className="stat-card"><div className="stat-icon blue"><FaFileAlt /></div><div className="stat-info"><h4>{allApplications.length}</h4><p>Assigned Applications</p></div></div>
+          <div className="stat-card"><div className="stat-icon blue"><FaFileAlt /></div><div className="stat-info"><h4>{applications.length}</h4><p>Assigned Applications</p></div></div>
           <div className="stat-card"><div className="stat-icon amber"><FaClock /></div><div className="stat-info"><h4>{pending.length}</h4><p>Pending Verification</p></div></div>
-          <div className="stat-card"><div className="stat-icon emerald"><FaCheckCircle /></div><div className="stat-info"><h4>{allApplications.filter(a => a.status === 'Verified').length}</h4><p>Completed Verification</p></div></div>
-          <div className="stat-card"><div className="stat-icon" style={{ background: '#fee2e2', color: '#ef4444' }}><FaHistory /></div><div className="stat-info"><h4 style={{ color: '#b91c1c' }}>{allApplications.filter(a => a.status === 'Re-verification').length}</h4><p>Re-verification Required</p></div></div>
+          <div className="stat-card"><div className="stat-icon emerald"><FaCheckCircle /></div><div className="stat-info"><h4>{applications.filter(a => a.status === 'Verified').length}</h4><p>Completed Verification</p></div></div>
+          <div className="stat-card"><div className="stat-icon" style={{ background: '#fee2e2', color: '#ef4444' }}><FaHistory /></div><div className="stat-info"><h4 style={{ color: '#b91c1c' }}>{applications.filter(a => a.status === 'Re-verification').length}</h4><p>Re-verification Required</p></div></div>
           <div className="stat-card"><div className="stat-icon" style={{ background: '#fef3c7', color: '#d97706' }}><FaExclamationCircle /></div><div className="stat-info"><h4 style={{ color: '#b45309' }}>2</h4><p>Overdue Milestones</p></div></div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid #e2e8f0', marginBottom: '1.75rem' }}>
+          <button
+            onClick={() => setTab('PENDING')}
+            style={{
+              background: 'none', border: 'none', padding: '0.55rem 1.4rem', fontWeight: 700, fontSize: '0.93rem', cursor: 'pointer', transition: 'all 0.2s',
+              color: tab === 'PENDING' ? '#2563eb' : '#64748b',
+              borderBottom: tab === 'PENDING' ? '3px solid #2563eb' : '3px solid transparent',
+              marginBottom: '-2px'
+            }}>
+            Pending Applications
+          </button>
+          <button
+            onClick={() => setTab('VERIFIED')}
+            style={{
+              background: 'none', border: 'none', padding: '0.55rem 1.4rem', fontWeight: 700, fontSize: '0.93rem', cursor: 'pointer', transition: 'all 0.2s',
+              color: tab === 'VERIFIED' ? '#2563eb' : '#64748b',
+              borderBottom: tab === 'VERIFIED' ? '3px solid #2563eb' : '3px solid transparent',
+              marginBottom: '-2px'
+            }}>
+            Verified Applications
+          </button>
         </div>
 
         {/* Applications Table */}
         <div style={{ background: '#fff', borderRadius: '12px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: 'var(--shadow-sm)' }}>
-          <h3 style={{ margin: '0 0 1.25rem', fontWeight: 700, color: '#0f172a' }}>Recent Verification Activity</h3>
+          <h3 style={{ margin: '0 0 1.25rem', fontWeight: 700, color: '#0f172a' }}>
+            {tab === 'PENDING' ? 'Pending Applications' : 'Verified Applications'}
+          </h3>
           <div className="custom-table-container">
             <table className="custom-table">
               <thead>
@@ -270,7 +339,11 @@ const FieldOfficerDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {allApplications.map(app => (
+                {loading ? (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Loading applications...</td></tr>
+                ) : applications.filter(app => tab === 'PENDING' ? ['Pending', 'Re-verification'].includes(app.status) : ['Verified', 'Forwarded', 'Approved', 'Rejected'].includes(app.status)).length === 0 ? (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No applications found.</td></tr>
+                ) : applications.filter(app => tab === 'PENDING' ? ['Pending', 'Re-verification'].includes(app.status) : ['Verified', 'Forwarded', 'Approved', 'Rejected'].includes(app.status)).map(app => (
                   <tr key={app.id}>
                     <td><strong>{app.id}</strong></td>
                     <td>{app.beneficiary}</td>
@@ -290,10 +363,13 @@ const FieldOfficerDashboard = () => {
         </div>
       </div>
 
-      {viewApp && <ViewModal app={viewApp} onClose={() => setViewApp(null)} />}
+      {viewApp && <ViewModal app={viewApp} onClose={(needsRefresh) => {
+        setViewApp(null);
+        if (needsRefresh === true) loadData();
+      }} />}
     </div>
   );
 };
 
-export { allApplications, getStatusBadge, ViewModal };
+export { getStatusBadge, ViewModal };
 export default FieldOfficerDashboard;

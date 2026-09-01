@@ -16,7 +16,7 @@ public class WorkflowHistory {
     private Application application;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stage_id", nullable = false)
+    @JoinColumn(name = "stage_id")
     private WorkflowStage stage;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -30,26 +30,62 @@ public class WorkflowHistory {
 
     private LocalDateTime actionDate = LocalDateTime.now();
 
-    public WorkflowHistory() {}
+    public WorkflowHistory() {
+    }
 
-    public Long getWorkflowId() { return workflowId; }
-    public void setWorkflowId(Long workflowId) { this.workflowId = workflowId; }
+    public Long getWorkflowId() {
+        return workflowId;
+    }
 
-    public Application getApplication() { return application; }
-    public void setApplication(Application application) { this.application = application; }
+    public void setWorkflowId(Long workflowId) {
+        this.workflowId = workflowId;
+    }
 
-    public WorkflowStage getStage() { return stage; }
-    public void setStage(WorkflowStage stage) { this.stage = stage; }
+    public Application getApplication() {
+        return application;
+    }
 
-    public Officer getOfficer() { return officer; }
-    public void setOfficer(Officer officer) { this.officer = officer; }
+    public void setApplication(Application application) {
+        this.application = application;
+    }
 
-    public String getAction() { return action; }
-    public void setAction(String action) { this.action = action; }
+    public WorkflowStage getStage() {
+        return stage;
+    }
 
-    public String getComments() { return comments; }
-    public void setComments(String comments) { this.comments = comments; }
+    public void setStage(WorkflowStage stage) {
+        this.stage = stage;
+    }
 
-    public LocalDateTime getActionDate() { return actionDate; }
-    public void setActionDate(LocalDateTime actionDate) { this.actionDate = actionDate; }
+    public Officer getOfficer() {
+        return officer;
+    }
+
+    public void setOfficer(Officer officer) {
+        this.officer = officer;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
+    public String getComments() {
+        return comments;
+    }
+
+    public void setComments(String comments) {
+        this.comments = comments;
+    }
+
+    public LocalDateTime getActionDate() {
+        return actionDate;
+    }
+
+    public void setActionDate(LocalDateTime actionDate) {
+        this.actionDate = actionDate;
+    }
 }

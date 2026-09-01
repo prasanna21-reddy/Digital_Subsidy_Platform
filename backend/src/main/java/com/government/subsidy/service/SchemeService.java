@@ -4,6 +4,8 @@ import com.government.subsidy.exception.ResourceNotFoundException;
 import com.government.subsidy.model.Scheme;
 import com.government.subsidy.repository.SchemeRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,9 @@ import java.util.List;
 @Service
 public class SchemeService {
     private final SchemeRepository schemeRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public SchemeService(SchemeRepository schemeRepository) {
         this.schemeRepository = schemeRepository;
@@ -36,6 +41,7 @@ public class SchemeService {
     public Scheme updateScheme(@NonNull Long id, Scheme schemeDetails) {
         Scheme existingScheme = getSchemeById(id);
         existingScheme.setName(schemeDetails.getName());
+        existingScheme.setCategory(schemeDetails.getCategory());
         existingScheme.setDescription(schemeDetails.getDescription());
         existingScheme.setEligibilityCriteria(schemeDetails.getEligibilityCriteria());
         existingScheme.setBudget(schemeDetails.getBudget());
@@ -63,6 +69,17 @@ public class SchemeService {
 
     @Transactional
     public void deleteScheme(Long id) {
+        // Detach any applications referencing this scheme to avoid FK constraint
+        // violation
+        try {
+            entityManager.createQuery(
+                    "UPDATE Application a SET a.scheme = null WHERE a.scheme.id = :schemeId")
+                    .setParameter("schemeId", id)
+                    .executeUpdate();
+            entityManager.flush();
+        } catch (Exception ex) {
+            System.out.println("[WARN] Could not detach applications from scheme (may have none): " + ex.getMessage());
+        }
         Scheme scheme = getSchemeById(id);
         schemeRepository.delete(scheme);
     }
